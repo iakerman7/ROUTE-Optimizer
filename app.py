@@ -84,6 +84,10 @@ def index():
 
     return render_template("index.html", result=None, city_coords=city_coords)
 
+import os
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 10000))  # use Render's port or default to 10000
+    app.run(host="0.0.0.0", port=port)
+
 
