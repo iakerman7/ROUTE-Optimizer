@@ -2,10 +2,10 @@ from flask import Flask, render_template, request, g
 from ml_core import run_pipeline
 import os
 
-# ✅ Create Flask app first!
+# ✅ MUST define Flask app first
 app = Flask(__name__)
 
-# ✅ THEN attach before_first_request
+# ✅ THEN apply decorators like this
 @app.before_first_request
 def setup_pipeline_cache():
     g.pipeline_cache = {}
@@ -52,8 +52,9 @@ def index():
         optimize_for = request.form["optimize_for"]
 
         key = f"{region_id}-{start_city}-{destination_city}-{optimize_for}"
-        if not hasattr(g, 'pipeline_cache'):
+        if not hasattr(g, "pipeline_cache"):
             g.pipeline_cache = {}
+
         if key not in g.pipeline_cache:
             g.pipeline_cache[key] = run_pipeline(region_id, start_city, destination_city, optimize_for)
 
@@ -67,7 +68,7 @@ def index():
 
     return render_template("index.html", result=None, city_coords=city_coords)
 
-# ✅ Correct app run block for Render
+# ✅ This works with gunicorn + Render
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
