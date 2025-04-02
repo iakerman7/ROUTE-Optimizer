@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ML Route Optimizer</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    #map {
+      height: 500px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body class="bg-light">
+<div class="container py-4">
+  <h2 class="mb-4 text-center">🚚 ML Route Optimizer</h2>
+
+  <!-- FORM -->
+  <form method="POST" class="card p-4 shadow-sm bg-white">
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label">Select Region:</label>
+        <select id="region" name="region" class="form-select" required>
+          <option value="1">West</option>
+          <option value="2">Midwest</option>
+          <option value="3">South</option>
+          <option value="4">Northeast</option>
+          <option value="5">Southeast</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Start City:</label>
+        <select id="start_city" name="start_city" class="form-select" required></select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Destination City:</label>
+        <select id="destination_city" name="destination_city" class="form-select" required></select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Optimize for:</label>
+        <select name="optimize_for" class="form-select" required>
+          <option value="distance">Distance</option>
+          <option value="time">Time</option>
+          <option value="weather">Weather</option>
+        </select>
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary mt-3">Find Route</button>
+
+    <!-- Loader -->
+    <div id="loadingMessage" class="text-center mt-3" style="display: none;">
+      <div class="alert alert-info">
+        ⏳ Finding best route... Please wait...
+      </div>
+    </div>
+  </form>
+
+  {% if result %}
+  <div class="card mt-4 p-4 shadow-sm bg-white">
+    <h4>🔎 Prediction Results</h4>
+    <p><strong>Region:</strong> {{ result.region_name }}</p>
+    <p><strong>Path:</strong> {{ result.path | join(" → ") }}</p>
+    <p><strong>Total Distance:</strong> {{ result.total_distance }} miles</p>
+    <p><strong>Total Time:</strong> {{ result.total_time }} hours</p>
+    <p><strong>Accuracy:</strong> {{ result.accuracy }}%</p>
+    <p><strong>Optimized for:</strong> {{ result.optimized_for | title }}</p>
+
+    <table class="table table-bordered mt-4">
+      <thead class="table-light">
+        <tr><th>#</th><th>City</th></tr>
+      </thead>
+      <tbody>
+        {% for city in result.path %}
+        <tr><td>{{ loop.index }}</td><td>{{ city }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <a id="download" class="btn btn-success mt-3" download="route.csv">⬇️ Download CSV</a>
+  </div>
+
+  <div id="map" class="mt-4"></div>
+  {% endif %}
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  const cityRegions = {
+    1: [...Array(10)].map((_, i) => `C${i + 1}`),
+    2: [...Array(10)].map((_, i) => `C${i + 11}`),
+    3: [...Array(10)].map((_, i) => `C${i + 21}`),
+    4: [...Array(10)].map((_, i) => `C${i + 31}`),
+    5: [...Array(10)].map((_, i) => `C${i + 41}`)
+  };
+
+  function populateCities(regionId) {
+    const cities = cityRegions[regionId] || [];
+    const start = document.getElementById('start_city');
+    const dest = document.getElementById('destination_city');
+    start.innerHTML = '';
+    dest.innerHTML = '';
+    cities.forEach(city => {
+      start.appendChild(new Option(city, city));
+      dest.appendChild(new Option(city, city));
+    });
+  }
+
+  document.getElementById('region').addEventListener('change', function () {
+    populateCities(parseInt(this.value));
+  });
+
+  populateCities(parseInt(document.getElementById('region').value));
+
+  document.querySelector("form").addEventListener("submit", () => {
+    document.getElementById("loadingMessage").style.display = "block";
+  });
+
+  {% if result and city_coords %}
+  const cityCoords = {{ city_coords|tojson }};
+  const path = {{ result.path|tojson }};
+  const map = L.map('map').setView(cityCoords[path[0]], 5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+  const latlngs = [];
+
+  path.forEach((city, index) => {
+    const coord = cityCoords[city];
+    latlngs.push(coord);
+
+    // Circular styled label
+    const label = L.divIcon({
+      className: '',
+      html: `
+        <div style="
+          background: white;
+          border: 2px solid #007bff;
+          border-radius: 50%;
+          width: 30px;
+          height: 30px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          font-weight: bold;
+          color: black;
+          font-size: 13px;
+          box-shadow: 0 0 4px rgba(0,0,0,0.3);
+        ">${city}</div>
+      `,
+      iconAnchor: [15, 15]
+    });
+    L.marker(coord, { icon: label }).addTo(map);
+
+    // Start = green pin
+    if (index === 0) {
+      L.marker(coord, {
+        icon: L.icon({
+          iconUrl: 'https://maps.google.com/mapfiles/ms/icons/green-dot.png',
+          iconSize: [32, 32],
+          iconAnchor: [16, 32]
+        })
+      }).addTo(map);
+    }
+    // End = red pin
+    else if (index === path.length - 1) {
+      L.marker(coord, {
+        icon: L.icon({
+          iconUrl: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png',
+          iconSize: [32, 32],
+          iconAnchor: [16, 32]
+        })
+      }).addTo(map);
+    }
+  });
+
+  L.polyline(latlngs, {
+    color: '#007bff',
+    weight: 5,
+    opacity: 0.9,
+    smoothFactor: 1
+  }).addTo(map);
+
+  map.fitBounds(latlngs);
+
+  const csv = ["Step,City"];
+  path.forEach((c, i) => csv.push(`${i + 1},${c}`));
+  const blob = new Blob([csv.join("\n")], { type: 'text/csv' });
+  document.getElementById('download').href = URL.createObjectURL(blob);
+  {% endif %}
+</script>
+</body>
+</html>
