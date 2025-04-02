@@ -2,3 +2,4 @@ Flask
 pandas
 networkx
 scikit-learn
+gunicorn
