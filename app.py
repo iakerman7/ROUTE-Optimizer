@@ -1,14 +1,12 @@
-from flask import Flask, render_template, request, g
+from flask import Flask, render_template, request
 from ml_core import run_pipeline
 import os
 
-# ✅ MUST define Flask app first
+# ✅ Initialize Flask app
 app = Flask(__name__)
 
-# ✅ THEN apply decorators like this
-@app.before_first_request
-def setup_pipeline_cache():
-    g.pipeline_cache = {}
+# ✅ Global in-memory cache to avoid re-running pipeline
+pipeline_cache = {}
 
 # 📍 Coordinates for cities
 city_coords = {
@@ -51,14 +49,13 @@ def index():
         destination_city = request.form["destination_city"].upper()
         optimize_for = request.form["optimize_for"]
 
-        key = f"{region_id}-{start_city}-{destination_city}-{optimize_for}"
-        if not hasattr(g, "pipeline_cache"):
-            g.pipeline_cache = {}
+        # Create a unique key for caching
+        cache_key = f"{region_id}-{start_city}-{destination_city}-{optimize_for}"
 
-        if key not in g.pipeline_cache:
-            g.pipeline_cache[key] = run_pipeline(region_id, start_city, destination_city, optimize_for)
+        if cache_key not in pipeline_cache:
+            pipeline_cache[cache_key] = run_pipeline(region_id, start_city, destination_city, optimize_for)
 
-        result = g.pipeline_cache[key]
+        result = pipeline_cache[cache_key]
         result["optimized_for"] = optimize_for
         result["region_name"] = {
             1: "West", 2: "Midwest", 3: "South", 4: "Northeast", 5: "Southeast"
@@ -68,7 +65,7 @@ def index():
 
     return render_template("index.html", result=None, city_coords=city_coords)
 
-# ✅ This works with gunicorn + Render
+# ✅ Required for Render (runs Flask via gunicorn)
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
