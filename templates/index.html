@@ -84,25 +84,25 @@
     <h4>📊 Comparison of All Strategies</h4>
     <p><strong>Region:</strong> {{ region_label }}</p>
     <table class="table table-bordered">
-      <thead class="table-light">
-        <tr>
-          {% for col in comparison_table.columns %}
-          <th>{{ col }}</th>
-          {% endfor %}
-        </tr>
-      </thead>
-      <tbody>
-        {% for i in range(comparison_table.shape[0]) %}
-        <tr>
-          {% for col in comparison_table.columns %}
-          <td>{{ comparison_table[col].iloc[i] }}</td>
-          {% endfor %}
-        </tr>
-        {% endfor %}
-      </tbody>
+     <thead class="table-light">
+  <tr>
+    {% for col in comparison_columns %}
+      <th>{{ col }}</th>
+    {% endfor %}
+  </tr>
+</thead>
+<tbody>
+  {% for row in comparison_table %}
+    <tr>
+      {% for col in comparison_columns %}
+        <td>{{ row[col] }}</td>
+      {% endfor %}
+    </tr>
+  {% endfor %}
+</tbody>
     </table>
   </div>
-  {% endif %}
+{% endif %}
 </div>
 
 <!-- SCRIPTS -->
