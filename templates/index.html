@@ -15,54 +15,57 @@
 
   <!-- FORM -->
   <form method="POST" class="card p-4 shadow-sm bg-white">
-    <div class="row g-3">
-      <div class="col-md-4">
-        <label class="form-label">Select Region:</label>
-        <select id="region" name="region" class="form-select" required>
-          <option value="1">West</option>
-          <option value="2">Midwest</option>
-          <option value="3">South</option>
-          <option value="4">Northeast</option>
-          <option value="5">Southeast</option>
-        </select>
-      </div>
-
-      <div class="col-md-4">
-        <label class="form-label">Start City:</label>
-        <select id="start_city" name="start_city" class="form-select" required></select>
-      </div>
-
-      <div class="col-md-4">
-        <label class="form-label">End City:</label>
-        <select id="end_city" name="end_city" class="form-select" required></select>
-      </div>
-
-      <div class="col-md-12">
-        <label class="form-label">Optimization Mode:</label>
-        <div class="form-check">
-          <input class="form-check-input" type="radio" name="compare" value="no" checked>
-          <label class="form-check-label">Single Strategy</label>
-        </div>
-        <div class="row">
-          <div class="col-md-3">
-            <select name="optimize_for" class="form-select mt-2">
-              <option value="time">Time</option>
-              <option value="distance">Distance</option>
-              <option value="weather">Weather</option>
-              <option value="combined">Combined</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="form-check mt-2">
-          <input class="form-check-input" type="radio" name="compare" value="yes">
-          <label class="form-check-label">Compare All Strategies</label>
-        </div>
-      </div>
+  <div class="row g-3">
+    <div class="col-md-4">
+      <label class="form-label">Select Region:</label>
+      <select id="region" name="region" class="form-select" required>
+        <option value="1">West</option>
+        <option value="2">Midwest</option>
+        <option value="3">South</option>
+        <option value="4">Northeast</option>
+        <option value="5">Southeast</option>
+      </select>
     </div>
 
-    <button type="submit" class="btn btn-primary mt-3">Find Route</button>
-  </form>
+    <div class="col-md-4">
+      <label class="form-label">Start City:</label>
+      <select id="start_city" name="start_city" class="form-select" required></select>
+    </div>
+
+    <div class="col-md-4">
+      <label class="form-label">End City:</label>
+      <select id="end_city" name="end_city" class="form-select" required></select>
+    </div>
+
+    <div class="col-md-12">
+      <label class="form-label">Optimization Mode:</label>
+
+      <div class="form-check">
+        <input class="form-check-input" type="radio" name="compare" value="no" id="singleMode" checked>
+        <label class="form-check-label" for="singleMode">Single Strategy</label>
+      </div>
+
+      <div class="row mt-2">
+        <div class="col-md-4">
+          <select name="optimize_for" class="form-select">
+            <option value="time">Time</option>
+            <option value="distance">Distance</option>
+            <option value="weather">Weather</option>
+            <option value="combined">Combined</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-check mt-2">
+        <input class="form-check-input" type="radio" name="compare" value="yes" id="compareMode">
+        <label class="form-check-label" for="compareMode">Compare All Strategies</label>
+      </div>
+    </div>
+  </div>
+
+  <button type="submit" class="btn btn-primary mt-3">Find Route</button>
+</form>
+
 
   <!-- SINGLE RESULT -->
   {% if result %}
