@@ -39,15 +39,13 @@
 
       <div class="col-md-12">
         <label class="form-label">Optimization Strategy:</label>
-
         <div class="form-check">
           <input class="form-check-input" type="radio" name="compare" id="single" value="no" checked>
           <label class="form-check-label" for="single">Single Strategy</label>
         </div>
-
         <div class="row mt-2">
           <div class="col-md-4">
-            <select name="optimize_for" class="form-select">
+            <select name="optimize_for" class="form-select" id="optimize_for">
               <option value="time">Time</option>
               <option value="distance">Distance</option>
               <option value="weather">Weather</option>
@@ -55,7 +53,6 @@
             </select>
           </div>
         </div>
-
         <div class="form-check mt-2">
           <input class="form-check-input" type="radio" name="compare" id="compare" value="yes">
           <label class="form-check-label" for="compare">Compare All Strategies</label>
@@ -70,6 +67,7 @@
   {% if result %}
   <div class="card mt-4 p-4 shadow-sm bg-white">
     <h4>🧭 Route Result — Optimized for {{ result.optimized_for.title() }}</h4>
+    <p><strong>Region:</strong> {{ region_label }}</p>
     <p><strong>Path:</strong> {{ result.path | join(" → ") }}</p>
     <p><strong>Total Distance:</strong> {{ result.total_distance }} miles</p>
     <p><strong>Total Time:</strong> {{ result.total_time }} hours</p>
@@ -84,6 +82,7 @@
   {% if comparison_table %}
   <div class="card mt-4 p-4 shadow-sm bg-white">
     <h4>📊 Comparison of All Strategies</h4>
+    <p><strong>Region:</strong> {{ region_label }}</p>
     <table class="table table-bordered">
       <thead class="table-light">
         <tr>
@@ -133,16 +132,28 @@
     populateCities(parseInt(this.value));
   });
 
-  // Default populate (region 1)
+  // Initial region
   populateCities(parseInt(document.getElementById('region').value || "1"));
+
+  // Disable optimize_for if compare mode is checked
+  const compareRadio = document.getElementById("compare");
+  const singleRadio = document.getElementById("single");
+  const strategySelect = document.getElementById("optimize_for");
+
+  function toggleStrategySelect() {
+    strategySelect.disabled = compareRadio.checked;
+  }
+
+  compareRadio.addEventListener("change", toggleStrategySelect);
+  singleRadio.addEventListener("change", toggleStrategySelect);
+  toggleStrategySelect();
 
   {% if result %}
   const cityCoords = {
-  {% for city, coord in city_coords.items() %}
-  "{{ city }}": [{{ coord[0] }}, {{ coord[1] }}],
-  {% endfor %}
-};
-
+    {% for city, coord in city_coords.items() %}
+    "{{ city }}": [{{ coord[0] }}, {{ coord[1] }}],
+    {% endfor %}
+  };
 
   const path = {{ result.path | tojson }};
   const map = L.map('map').setView([39.5, -98.35], 4);
@@ -164,7 +175,6 @@
   L.polyline(latlngs, { color: 'blue', weight: 4 }).addTo(map);
   map.fitBounds(latlngs);
 
-  // CSV Download
   const csv = ["Step,City"];
   path.forEach((city, i) => csv.push(`${i + 1},${city}`));
   const blob = new Blob([csv.join("\n")], { type: 'text/csv' });

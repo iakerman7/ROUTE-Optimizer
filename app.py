@@ -5,7 +5,7 @@ import os
 app = Flask(__name__)
 ros = RouteOptimizationSystem()
 
-# City coordinates for the map
+# City coordinates (for map rendering)
 city_coords = {
     "C1": [37.7749, -122.4194],  "C2": [34.0522, -118.2437],  "C3": [36.1699, -115.1398],
     "C4": [47.6062, -122.3321],  "C5": [45.5152, -122.6784],  "C6": [39.7392, -104.9903],
@@ -26,7 +26,6 @@ city_coords = {
     "C49": [33.5207, -86.8025],  "C50": [27.9506, -82.4572]
 }
 
-# Load and prepare model ONCE
 ros.load_data(
     routes_path="data/routes_table.csv",
     weather_path="data/routes_weather.csv",
@@ -44,10 +43,16 @@ def index():
     result = None
     comparison_table = None
     comparison_results = None
+    region_label = None
 
     if request.method == "POST":
         try:
             region_id = int(request.form["region"])
+            region_name = {
+                1: "West", 2: "Midwest", 3: "South", 4: "Northeast", 5: "Southeast"
+            }[region_id]
+            region_label = region_name
+
             start_city = request.form["start_city"].upper()
             end_city = request.form["end_city"].upper()
             compare_mode = request.form.get("compare", "no")
@@ -60,19 +65,19 @@ def index():
                 optimize_for = request.form.get("optimize_for") or "combined"
                 result = ros.find_optimal_route(region_id, start_city, end_city, optimize_for=optimize_for)
                 result["optimized_for"] = optimize_for
-                result["avg_weather_risk"] = round(result.get("avg_weather_risk", 0), 2)  # ✅ ADD THIS
+                result["avg_weather_risk"] = round(result.get("avg_weather_risk", 0), 2)
                 result["city_coords"] = city_coords
 
-
         except Exception as e:
-            return f"Bad Request: {e}", 400
+            return f"Internal Server Error: {e}", 500
 
     return render_template(
         "index.html",
         result=result,
         comparison_table=comparison_table,
         comparison_results=comparison_results,
-        city_coords=city_coords
+        city_coords=city_coords,
+        region_label=region_label
     )
 
 if __name__ == "__main__":
