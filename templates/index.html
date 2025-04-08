@@ -73,7 +73,7 @@
     <p><strong>Path:</strong> {{ result.path | join(" → ") }}</p>
     <p><strong>Total Distance:</strong> {{ result.total_distance }} miles</p>
     <p><strong>Total Time:</strong> {{ result.total_time }} hours</p>
-    <p><strong>Weather Risk:</strong> {{ result.avg_weather_risk }} (scale 1–5)</p>
+    <p><strong>Weather Risk:</strong> {{ result.avg_weather_risk or "N/A" }} (scale 1–5)</p>
     <a id="download" class="btn btn-success mt-2" download="route.csv">⬇️ Download CSV</a>
   </div>
 
