@@ -138,10 +138,11 @@
 
   {% if result %}
   const cityCoords = {
-    {% for city, coord in result.get("city_coords", {}).items() %}
-    "{{ city }}": [{{ coord[0] }}, {{ coord[1] }}],
-    {% endfor %}
-  };
+  {% for city, coord in city_coords.items() %}
+  "{{ city }}": [{{ coord[0] }}, {{ coord[1] }}],
+  {% endfor %}
+};
+
 
   const path = {{ result.path | tojson }};
   const map = L.map('map').setView([39.5, -98.35], 4);
