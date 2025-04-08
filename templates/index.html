@@ -15,57 +15,56 @@
 
   <!-- FORM -->
   <form method="POST" class="card p-4 shadow-sm bg-white">
-  <div class="row g-3">
-    <div class="col-md-4">
-      <label class="form-label">Select Region:</label>
-      <select id="region" name="region" class="form-select" required>
-        <option value="1">West</option>
-        <option value="2">Midwest</option>
-        <option value="3">South</option>
-        <option value="4">Northeast</option>
-        <option value="5">Southeast</option>
-      </select>
-    </div>
-
-    <div class="col-md-4">
-      <label class="form-label">Start City:</label>
-      <select id="start_city" name="start_city" class="form-select" required></select>
-    </div>
-
-    <div class="col-md-4">
-      <label class="form-label">End City:</label>
-      <select id="end_city" name="end_city" class="form-select" required></select>
-    </div>
-
-    <div class="col-md-12">
-      <label class="form-label">Optimization Mode:</label>
-
-      <div class="form-check">
-        <input class="form-check-input" type="radio" name="compare" value="no" id="singleMode" checked>
-        <label class="form-check-label" for="singleMode">Single Strategy</label>
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label">Region:</label>
+        <select id="region" name="region" class="form-select" required>
+          <option value="1">West</option>
+          <option value="2">Midwest</option>
+          <option value="3">South</option>
+          <option value="4">Northeast</option>
+          <option value="5">Southeast</option>
+        </select>
       </div>
 
-      <div class="row mt-2">
-        <div class="col-md-4">
-          <select name="optimize_for" class="form-select">
-            <option value="time">Time</option>
-            <option value="distance">Distance</option>
-            <option value="weather">Weather</option>
-            <option value="combined">Combined</option>
-          </select>
+      <div class="col-md-4">
+        <label class="form-label">Start City:</label>
+        <select id="start_city" name="start_city" class="form-select" required></select>
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label">End City:</label>
+        <select id="end_city" name="end_city" class="form-select" required></select>
+      </div>
+
+      <div class="col-md-12">
+        <label class="form-label">Optimization Strategy:</label>
+
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="compare" id="single" value="no" checked>
+          <label class="form-check-label" for="single">Single Strategy</label>
+        </div>
+
+        <div class="row mt-2">
+          <div class="col-md-4">
+            <select name="optimize_for" class="form-select">
+              <option value="time">Time</option>
+              <option value="distance">Distance</option>
+              <option value="weather">Weather</option>
+              <option value="combined">Combined</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-check mt-2">
+          <input class="form-check-input" type="radio" name="compare" id="compare" value="yes">
+          <label class="form-check-label" for="compare">Compare All Strategies</label>
         </div>
       </div>
-
-      <div class="form-check mt-2">
-        <input class="form-check-input" type="radio" name="compare" value="yes" id="compareMode">
-        <label class="form-check-label" for="compareMode">Compare All Strategies</label>
-      </div>
     </div>
-  </div>
 
-  <button type="submit" class="btn btn-primary mt-3">Find Route</button>
-</form>
-
+    <button type="submit" class="btn btn-primary mt-3">Find Route</button>
+  </form>
 
   <!-- SINGLE RESULT -->
   {% if result %}
@@ -75,17 +74,16 @@
     <p><strong>Total Distance:</strong> {{ result.total_distance }} miles</p>
     <p><strong>Total Time:</strong> {{ result.total_time }} hours</p>
     <p><strong>Weather Risk:</strong> {{ result.avg_weather_risk }} (scale 1–5)</p>
-
     <a id="download" class="btn btn-success mt-2" download="route.csv">⬇️ Download CSV</a>
   </div>
 
   <div id="map"></div>
   {% endif %}
 
-  <!-- COMPARISON RESULT -->
+  <!-- COMPARISON TABLE -->
   {% if comparison_table %}
   <div class="card mt-4 p-4 shadow-sm bg-white">
-    <h4>📊 Comparison Across All Strategies</h4>
+    <h4>📊 Comparison of All Strategies</h4>
     <table class="table table-bordered">
       <thead class="table-light">
         <tr>
@@ -135,24 +133,24 @@
     populateCities(parseInt(this.value));
   });
 
+  // Default populate (region 1)
   populateCities(parseInt(document.getElementById('region').value || "1"));
 
   {% if result %}
-  const path = {{ result.path | tojson }};
-  const map = L.map('map').setView([39.5, -98.35], 4);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-
   const cityCoords = {
-    {% for city, coord in city_coords.items() %}
+    {% for city, coord in result.get("city_coords", {}).items() %}
     "{{ city }}": [{{ coord[0] }}, {{ coord[1] }}],
     {% endfor %}
   };
 
+  const path = {{ result.path | tojson }};
+  const map = L.map('map').setView([39.5, -98.35], 4);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
   const latlngs = [];
-  path.forEach((city, i) => {
+  path.forEach(city => {
     const coord = cityCoords[city];
     latlngs.push(coord);
-
     L.marker(coord, {
       icon: L.divIcon({
         html: `<div style="background:white;border:2px solid black;border-radius:50%;width:30px;height:30px;line-height:28px;text-align:center;">${city}</div>`,
@@ -165,6 +163,7 @@
   L.polyline(latlngs, { color: 'blue', weight: 4 }).addTo(map);
   map.fitBounds(latlngs);
 
+  // CSV Download
   const csv = ["Step,City"];
   path.forEach((city, i) => csv.push(`${i + 1},${city}`));
   const blob = new Blob([csv.join("\n")], { type: 'text/csv' });
