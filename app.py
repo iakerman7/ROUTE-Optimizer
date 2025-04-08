@@ -44,6 +44,7 @@ def index():
     comparison_table = None
     comparison_results = None
     region_label = None
+    comparison_columns = []
 
     if request.method == "POST":
         try:
@@ -61,6 +62,11 @@ def index():
                 comparison_table, comparison_results = ros.compare_optimization_strategies(
                     region_id, start_city, end_city
                 )
+                comparison_table_df = comparison_table  # store original DataFrame 
+                comparison_table = comparison_table_df.to_dict(orient="records") if comparison_table_df is not None else None 
+                comparison_columns = list(comparison_table_df.columns) if comparison_table_df is not None else []
+
+
             else:
                 optimize_for = request.form.get("optimize_for") or "combined"
                 result = ros.find_optimal_route(region_id, start_city, end_city, optimize_for=optimize_for)
@@ -74,12 +80,13 @@ def index():
     return render_template(
     "index.html",
     result=result,
-    comparison_table=comparison_table.to_dict(orient="records") if comparison_table is not None else None,
-    comparison_columns=list(comparison_table.columns) if comparison_table is not None else [],
+    comparison_table=comparison_table,
+    comparison_columns=comparison_columns,
     comparison_results=comparison_results,
     city_coords=city_coords,
     region_label=region_label
 )
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
