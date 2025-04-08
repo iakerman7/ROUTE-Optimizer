@@ -113,7 +113,14 @@ class RouteOptimizationSystem:
             # Aggregate seasonal weather risks
             season_risks = self.weather_df.groupby(['route_id', 'season'])['weather_risk'].mean().reset_index()
             season_risks_pivot = season_risks.pivot(index='route_id', columns='season', values='weather_risk').reset_index()
-            season_risks_pivot.columns = ['route_id', 'spring_risk', 'summer_risk', 'fall_risk', 'winter_risk']
+            expected_columns = ['route_id', 'spring_risk', 'summer_risk', 'fall_risk', 'winter_risk']
+            if season_risks_pivot.shape[1] == len(expected_columns):
+                season_risks_pivot.columns = expected_columns 
+            else:
+                    print("⚠️ Warning: Unexpected number of columns in season_risks_pivot") 
+                    print("  Found columns:", list(season_risks_pivot.columns)) 
+                    season_risks_pivot.columns = season_risks_pivot.columns  # fallback
+
             
             # Merge seasonal features
             self.processed_routes = self.processed_routes.merge(season_risks_pivot, on='route_id', how='left')
