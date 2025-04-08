@@ -106,7 +106,7 @@ class RouteOptimizationSystem:
         # Add seasonal features if date information is available
         if 'Date' in self.weather_df.columns:
             # Extract season information
-            self.weather_df['date_obj'] = pd.to_datetime(self.weather_df['Date'])
+            self.weather_df['date_obj'] = pd.to_datetime(self.weather_df['Date'], dayfirst=True)
             self.weather_df['month'] = self.weather_df['date_obj'].dt.month
             self.weather_df['season'] = self.weather_df['month'].apply(self._get_season)
             
