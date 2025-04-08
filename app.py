@@ -72,13 +72,14 @@ def index():
             return f"Internal Server Error: {e}", 500
 
     return render_template(
-        "index.html",
-        result=result,
-        comparison_table=comparison_table,
-        comparison_results=comparison_results,
-        city_coords=city_coords,
-        region_label=region_label
-    )
+    "index.html",
+    result=result,
+    comparison_table=comparison_table.to_dict(orient="records") if comparison_table is not None else None,
+    comparison_columns=list(comparison_table.columns) if comparison_table is not None else [],
+    comparison_results=comparison_results,
+    city_coords=city_coords,
+    region_label=region_label
+)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
