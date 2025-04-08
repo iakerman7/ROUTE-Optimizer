@@ -127,7 +127,10 @@ class RouteOptimizationSystem:
             
             # Fill missing seasonal values
             for season in ['spring_risk', 'summer_risk', 'fall_risk', 'winter_risk']:
-                self.processed_routes[season].fillna(3, inplace=True)
+                if season in self.processed_routes.columns:
+                    self.processed_routes[season].fillna(3, inplace=True)
+                else: 
+                    print(f"⚠️ Column '{season}' not found in processed_routes — skipping.")
         
         # Create additional derived features
         # Calculate speed (miles per hour)
