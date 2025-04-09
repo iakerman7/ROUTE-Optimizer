@@ -56,6 +56,9 @@ def index():
 
             start_city = request.form["start_city"].upper()
             end_city = request.form["end_city"].upper()
+            start_label = start_city
+            end_label = end_city
+
             compare_mode = request.form.get("compare", "no")
 
             if compare_mode == "yes":
@@ -84,8 +87,11 @@ def index():
     comparison_columns=comparison_columns,
     comparison_results=comparison_results,
     city_coords=city_coords,
-    region_label=region_label
+    region_label=region_label,
+    start_label=start_city,
+    end_label=end_city
 )
+
 
 
 if __name__ == "__main__":
