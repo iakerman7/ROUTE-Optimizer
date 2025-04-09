@@ -45,6 +45,8 @@ def index():
     comparison_results = None
     region_label = None
     comparison_columns = []
+    start_city = "" 
+    end_city = ""
 
     if request.method == "POST":
         try:
