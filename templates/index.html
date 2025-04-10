@@ -94,6 +94,11 @@
     <p><strong>Path:</strong> {{ result.path | join(" → ") }}</p>
     <p><strong>Total Distance:</strong> {{ result.total_distance }} miles</p>
     <p><strong>Total Time:</strong> {{ result.total_time }} hours</p>
+	{% if result.safety_score %}
+	<p><strong>Safety Score:</strong> {{ result.safety_score }} / 10</p>
+	<p>{{ result.safety_msg }}</p>
+	{% endif %}
+
     {% if result.avg_weather_risk is defined %}
     <p><strong>Weather Risk:</strong> {{ result.avg_weather_risk }} (scale 1–5)</p>
     {% endif %}

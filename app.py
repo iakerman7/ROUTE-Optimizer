@@ -65,6 +65,18 @@ def index():
                 result = ros.find_express_time_route(region_id, express_cities)
                 result["optimized_for"] = "express"
                 result["city_coords"] = city_coords
+
+                # Simulated safety score logic
+                total_vehicles = 1500
+                safety_score = ros.calculate_safety_score(total_vehicles)
+                result["safety_score"] = safety_score
+                if safety_score < 2:
+                    result["safety_msg"] = "🟠 Relatively less safe route — drive carefully."
+                elif safety_score <= 6:
+                    result["safety_msg"] = "🟡 Moderately safe — stay alert."
+                else:
+                    result["safety_msg"] = "🟢 Route looks safe — good conditions expected."
+
             else:
                 compare_mode = request.form.get("compare", "no")
                 if compare_mode == "yes":
@@ -80,6 +92,17 @@ def index():
                     result["optimized_for"] = optimize_for
                     result["avg_weather_risk"] = round(result.get("avg_weather_risk", 0), 2)
                     result["city_coords"] = city_coords
+
+                    # Simulated safety score logic
+                    total_vehicles = 1500
+                    safety_score = ros.calculate_safety_score(total_vehicles)
+                    result["safety_score"] = safety_score
+                    if safety_score < 2:
+                        result["safety_msg"] = "🟠 Relatively less safe route — drive carefully."
+                    elif safety_score <= 6:
+                        result["safety_msg"] = "🟡 Moderately safe — stay alert."
+                    else:
+                        result["safety_msg"] = "🟢 Route looks safe — good conditions expected."
 
         except Exception as e:
             return f"Internal Server Error: {e}", 500
@@ -100,3 +123,4 @@ def index():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
+

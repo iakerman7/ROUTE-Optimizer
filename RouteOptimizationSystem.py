@@ -1255,6 +1255,12 @@ class RouteOptimizationSystem:
             return 1.25
         return 1.0
     
+    def calculate_safety_score(self, num_vehicles):
+        raw_score = -0.0106 * num_vehicles**2 + 0.0703 * num_vehicles + 0.8661
+        scaled = max(1, min((raw_score * 100 - 90), 10))  # Clamp to 1–10
+        return round(scaled, 1)
+
+    
     def _get_season(self, month):
         """Get season from month number"""
         if 3 <= month <= 5:
