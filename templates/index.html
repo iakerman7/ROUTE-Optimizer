@@ -27,12 +27,12 @@
         </select>
       </div>
 
-      <div class="col-md-4 normal-group">
+      <div class="col-md-4 normal-only">
         <label class="form-label">Start City:</label>
         <select id="start_city" name="start_city" class="form-select" required></select>
       </div>
 
-      <div class="col-md-4 normal-group">
+      <div class="col-md-4 normal-only">
         <label class="form-label">End City:</label>
         <select id="end_city" name="end_city" class="form-select" required></select>
       </div>
@@ -40,16 +40,16 @@
       <div class="col-md-12">
         <label class="form-label">Route Mode:</label>
         <div class="form-check">
-          <input class="form-check-input" type="radio" name="express" id="normal" value="no" checked>
-          <label class="form-check-label" for="normal">🧭 Normal Route</label>
+          <input class="form-check-input" type="radio" name="mode" id="mode_normal" value="normal" checked>
+          <label class="form-check-label" for="mode_normal">🌟 Normal Route</label>
         </div>
         <div class="form-check">
-          <input class="form-check-input" type="radio" name="express" id="express" value="yes">
-          <label class="form-check-label" for="express">🚀 Express Time Route</label>
+          <input class="form-check-input" type="radio" name="mode" id="mode_express" value="express">
+          <label class="form-check-label" for="mode_express">🚀 Express Time Route</label>
         </div>
       </div>
 
-      <div class="col-md-12 normal-group">
+      <div class="col-md-12 normal-only">
         <div class="form-check mt-3">
           <input class="form-check-input" type="radio" name="compare" id="single" value="no" checked>
           <label class="form-check-label" for="single">Single Strategy</label>
@@ -70,9 +70,9 @@
         </div>
       </div>
 
-      <div class="col-md-12 express-group" style="display: none;">
-        <label class="form-label">Select 2–5 Cities (Express):</label>
-        <select name="express_cities" id="express_cities" class="form-select" multiple required></select>
+      <div class="col-md-12 express-only" style="display: none;">
+        <label class="form-label">Select 2–5 Cities:</label>
+        <select name="express_cities" id="express_cities" class="form-select" multiple></select>
         <small class="text-muted">Hold Ctrl (or Cmd) to select multiple</small>
       </div>
     </div>
@@ -80,7 +80,7 @@
     <button type="submit" class="btn btn-primary mt-3">Find Route</button>
   </form>
 
-  <!-- ROUTE RESULTS -->
+  <!-- ROUTE RESULT -->
   {% if result %}
   <div class="card mt-4 p-4 shadow-sm bg-white">
     <h4>🧭 Route Result — Optimized for {{ result.optimized_for.title() }}</h4>
@@ -145,33 +145,37 @@
 
   function populateCities(regionId) {
     const cities = cityRegions[regionId] || [];
-    document.getElementById('start_city').innerHTML = '';
-    document.getElementById('end_city').innerHTML = '';
-    document.getElementById('express_cities').innerHTML = '';
+    const start = document.getElementById('start_city');
+    const end = document.getElementById('end_city');
+    const express = document.getElementById('express_cities');
+
+    start.innerHTML = '';
+    end.innerHTML = '';
+    express.innerHTML = '';
     cities.forEach(city => {
-      document.getElementById('start_city').append(new Option(city, city));
-      document.getElementById('end_city').append(new Option(city, city));
-      document.getElementById('express_cities').append(new Option(city, city));
+      start.appendChild(new Option(city, city));
+      end.appendChild(new Option(city, city));
+      express.appendChild(new Option(city, city));
     });
   }
 
   function toggleMode() {
-    const express = document.getElementById('express').checked;
-    document.querySelectorAll(".normal-group").forEach(el => {
-      el.style.display = express ? "none" : "block";
-    });
-    document.querySelectorAll(".express-group").forEach(el => {
-      el.style.display = express ? "block" : "none";
-    });
+    const mode = document.querySelector('input[name="mode"]:checked').value;
+    const isExpress = mode === "express";
+    document.querySelectorAll(".normal-only").forEach(el => el.style.display = isExpress ? "none" : "block");
+    document.querySelectorAll(".express-only").forEach(el => el.style.display = isExpress ? "block" : "none");
   }
 
-  document.getElementById("express").addEventListener("change", toggleMode);
-  document.getElementById("normal").addEventListener("change", toggleMode);
   document.getElementById("region").addEventListener("change", () => {
-    populateCities(parseInt(document.getElementById('region').value));
+    populateCities(parseInt(document.getElementById("region").value));
   });
 
-  populateCities(parseInt(document.getElementById('region').value || "1"));
+  document.querySelectorAll("input[name='mode']").forEach(r => {
+    r.addEventListener("change", toggleMode);
+  });
+
+  // Initial calls
+  populateCities(parseInt(document.getElementById("region").value || "1"));
   toggleMode();
 
   {% if result %}
