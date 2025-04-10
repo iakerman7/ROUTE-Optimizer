@@ -647,6 +647,7 @@ class RouteOptimizationSystem:
         
         return results
     
+    
     def _find_greedy_time_route(self, G, cities_in_region, start_city, end_city):
         """
         Find a time-optimized route using a greedy nearest-neighbor approach.
@@ -740,6 +741,100 @@ class RouteOptimizationSystem:
                     return float('inf'), 0, 0
         
         return total_time, total_distance, total_weather_risk
+    
+    def find_express_time_route(self, region_id, key_cities):
+        """
+        Finds a time-optimized route that visits all selected cities exactly once,
+        using shortest paths between each pair of cities.
+    
+        Parameters:
+            region_id (int): Region ID (1-5)
+            key_cities (list): List of 5 city IDs to visit
+    
+        Returns:
+            dict: Optimized route and metrics
+        """
+        print(f"\nFinding express time-optimized route for cities: {key_cities} in region {region_id}...")
+    
+        if len(key_cities) != 5:
+            return {"error": "Exactly 5 cities must be specified for express route."}
+    
+        self.build_graph(region_id, "time")
+        G = self.graphs["time"]
+    
+        import itertools
+        tsp_graph = nx.Graph()
+    
+        # Step 1: Create a complete graph between the 5 selected cities
+        for i in range(len(key_cities)):
+            for j in range(i + 1, len(key_cities)):
+                city1, city2 = key_cities[i], key_cities[j]
+                try:
+                    path = nx.shortest_path(G, source=city1, target=city2, weight='weight')
+                    time, distance, _ = self._calculate_path_metrics(G, path)
+                    tsp_graph.add_edge(city1, city2, weight=time, path=path, distance=distance, time=time)
+                except nx.NetworkXNoPath:
+                    print(f"❌ No path found between {city1} and {city2}")
+                    return {"error": f"No valid connection between {city1} and {city2} in express route."}
+    
+        # Step 2: Try all permutations to find best time route
+        best_time = float('inf')
+        best_path = None
+        best_detailed_path = None
+
+        for perm in itertools.permutations(key_cities):
+            full_path = [perm[0]]
+            total_time = 0
+            valid = True
+    
+            for i in range(4):  # 5 cities → 4 segments
+                u, v = perm[i], perm[i + 1]
+                if tsp_graph.has_edge(u, v):
+                    total_time += tsp_graph[u][v]['weight']
+                    segment = tsp_graph[u][v]['path']
+                    # Avoid duplication while merging segments
+                    if full_path[-1] == segment[0]:
+                        full_path.extend(segment[1:])
+                    else:
+                        full_path.extend(segment)
+                else:
+                    valid = False
+                    break
+    
+            if valid and total_time < best_time:
+                best_time = total_time
+                best_path = perm
+                best_detailed_path = full_path
+    
+        if not best_path:
+            return {"error": "No valid route found between selected cities."}
+    
+        # Step 3: Calculate total distance from detailed path
+        total_distance = 0
+        for i in range(len(best_detailed_path) - 1):
+            u, v = best_detailed_path[i], best_detailed_path[i + 1]
+            if G.has_edge(u, v):
+                total_distance += G[u][v]['distance']
+            else:
+                try:
+                    alt_path = nx.shortest_path(G, source=u, target=v, weight='weight')
+                    for j in range(len(alt_path) - 1):
+                        uu, vv = alt_path[j], alt_path[j + 1]
+                        total_distance += G[uu][vv]['distance']
+                except nx.NetworkXNoPath:
+                    pass  # fallback if segment really can't be measured
+    
+        return {
+            "path": list(best_path),  # Cities visited once
+            "detailed_path": best_detailed_path,  # Real route (possibly with intermediate nodes)
+            "total_time": round(best_time, 2),
+            "total_distance": round(total_distance, 2),
+            "optimization": "express_time",
+            "visited_cities": len(set(best_path))
+        }
+
+
+
     
     def build_graph(self, region_id, optimize_for):
         """
