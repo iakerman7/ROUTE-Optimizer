@@ -27,35 +27,52 @@
         </select>
       </div>
 
-      <div class="col-md-4">
+      <div class="col-md-4 normal-mode">
         <label class="form-label">Start City:</label>
-        <select id="start_city" name="start_city" class="form-select" required></select>
+        <select id="start_city" name="start_city" class="form-select"></select>
       </div>
 
-      <div class="col-md-4">
+      <div class="col-md-4 normal-mode">
         <label class="form-label">End City:</label>
-        <select id="end_city" name="end_city" class="form-select" required></select>
+        <select id="end_city" name="end_city" class="form-select"></select>
       </div>
 
       <div class="col-md-12">
         <label class="form-label">Optimization Strategy:</label>
         <div class="form-check">
-          <input class="form-check-input" type="radio" name="compare" id="single" value="no" checked>
-          <label class="form-check-label" for="single">Single Strategy</label>
+          <input class="form-check-input" type="radio" name="express" id="express_no" value="no" checked>
+          <label class="form-check-label" for="express_no">Normal Route</label>
         </div>
-        <div class="row mt-2">
-          <div class="col-md-4">
-            <select name="optimize_for" class="form-select" id="optimize_for">
-              <option value="time">Time</option>
-              <option value="distance">Distance</option>
-              <option value="weather">Weather</option>
-              <option value="combined">Combined</option>
-            </select>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="express" id="express_yes" value="yes">
+          <label class="form-check-label" for="express_yes">🚀 Express Time Route</label>
+        </div>
+
+        <div class="normal-mode mt-3">
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="compare" id="single" value="no" checked>
+            <label class="form-check-label" for="single">Single Strategy</label>
+          </div>
+          <div class="row mt-2">
+            <div class="col-md-4">
+              <select name="optimize_for" class="form-select" id="optimize_for">
+                <option value="time">Time</option>
+                <option value="distance">Distance</option>
+                <option value="weather">Weather</option>
+                <option value="combined">Combined</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-check mt-2">
+            <input class="form-check-input" type="radio" name="compare" id="compare" value="yes">
+            <label class="form-check-label" for="compare">Compare All Strategies</label>
           </div>
         </div>
-        <div class="form-check mt-2">
-          <input class="form-check-input" type="radio" name="compare" id="compare" value="yes">
-          <label class="form-check-label" for="compare">Compare All Strategies</label>
+
+        <div class="express-mode mt-3" style="display: none;">
+          <label class="form-label">Select 2–5 Cities:</label>
+          <select id="express_cities" name="express_cities" class="form-select" multiple required></select>
+          <small class="text-muted">Hold Ctrl (or Cmd) to select multiple cities</small>
         </div>
       </div>
     </div>
@@ -63,19 +80,23 @@
     <button type="submit" class="btn btn-primary mt-3">Find Route</button>
   </form>
 
-  <!-- SINGLE RESULT -->
+  <!-- ROUTE RESULT -->
   {% if result %}
   <div class="card mt-4 p-4 shadow-sm bg-white">
     <h4>🧭 Route Result — Optimized for {{ result.optimized_for.title() }}</h4>
     <p><strong>Region:</strong> {{ region_label }}</p>
-	<p>
-  <strong>Start City:</strong> {{ start_label }} &nbsp;&nbsp;
-  <strong>End City:</strong> {{ end_label }}
-</p>
+    {% if result.optimized_for != 'express' %}
+    <p><strong>Start City:</strong> {{ start_label }} &nbsp;&nbsp;
+       <strong>End City:</strong> {{ end_label }}</p>
+    {% else %}
+    <p><strong>Cities:</strong> {{ express_cities | join(" → ") }}</p>
+    {% endif %}
     <p><strong>Path:</strong> {{ result.path | join(" → ") }}</p>
     <p><strong>Total Distance:</strong> {{ result.total_distance }} miles</p>
     <p><strong>Total Time:</strong> {{ result.total_time }} hours</p>
-    <p><strong>Weather Risk:</strong> {{ result.avg_weather_risk or "N/A" }} (scale 1–5)</p>
+    {% if result.avg_weather_risk is defined %}
+    <p><strong>Weather Risk:</strong> {{ result.avg_weather_risk }} (scale 1–5)</p>
+    {% endif %}
     <a id="download" class="btn btn-success mt-2" download="route.csv">⬇️ Download CSV</a>
   </div>
 
@@ -86,31 +107,29 @@
   {% if comparison_table %}
   <div class="card mt-4 p-4 shadow-sm bg-white">
     <h4>📊 Comparison of All Strategies</h4>
-<p><strong>Region:</strong> {{ region_label }}</p>
-<p>
-  <strong>Start City:</strong> {{ start_label }} &nbsp;&nbsp;
-  <strong>End City:</strong> {{ end_label }}
-</p>
+    <p><strong>Region:</strong> {{ region_label }}</p>
+    <p><strong>Start City:</strong> {{ start_label }} &nbsp;&nbsp;
+       <strong>End City:</strong> {{ end_label }}</p>
     <table class="table table-bordered">
-     <thead class="table-light">
-  <tr>
-    {% for col in comparison_columns %}
-      <th>{{ col }}</th>
-    {% endfor %}
-  </tr>
-</thead>
-<tbody>
-  {% for row in comparison_table %}
-    <tr>
-      {% for col in comparison_columns %}
-        <td>{{ row[col] }}</td>
-      {% endfor %}
-    </tr>
-  {% endfor %}
-</tbody>
+      <thead class="table-light">
+        <tr>
+          {% for col in comparison_columns %}
+          <th>{{ col }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in comparison_table %}
+        <tr>
+          {% for col in comparison_columns %}
+          <td>{{ row[col] }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
     </table>
   </div>
-{% endif %}
+  {% endif %}
 </div>
 
 <!-- SCRIPTS -->
@@ -128,11 +147,15 @@
     const cities = cityRegions[regionId] || [];
     const start = document.getElementById('start_city');
     const end = document.getElementById('end_city');
+    const express = document.getElementById('express_cities');
+
     start.innerHTML = '';
     end.innerHTML = '';
+    express.innerHTML = '';
     cities.forEach(city => {
       start.appendChild(new Option(city, city));
       end.appendChild(new Option(city, city));
+      express.appendChild(new Option(city, city));
     });
   }
 
@@ -140,21 +163,17 @@
     populateCities(parseInt(this.value));
   });
 
-  // Initial region
-  populateCities(parseInt(document.getElementById('region').value || "1"));
-
-  // Disable optimize_for if compare mode is checked
-  const compareRadio = document.getElementById("compare");
-  const singleRadio = document.getElementById("single");
-  const strategySelect = document.getElementById("optimize_for");
-
-  function toggleStrategySelect() {
-    strategySelect.disabled = compareRadio.checked;
+  // Express toggle logic
+  function toggleExpressUI() {
+    const express = document.getElementById("express_yes").checked;
+    document.querySelectorAll(".normal-mode").forEach(el => el.style.display = express ? "none" : "block");
+    document.querySelectorAll(".express-mode").forEach(el => el.style.display = express ? "block" : "none");
   }
 
-  compareRadio.addEventListener("change", toggleStrategySelect);
-  singleRadio.addEventListener("change", toggleStrategySelect);
-  toggleStrategySelect();
+  document.getElementById("express_yes").addEventListener("change", toggleExpressUI);
+  document.getElementById("express_no").addEventListener("change", toggleExpressUI);
+  toggleExpressUI();
+  populateCities(parseInt(document.getElementById('region').value || "1"));
 
   {% if result %}
   const cityCoords = {
