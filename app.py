@@ -5,7 +5,7 @@ import os
 app = Flask(__name__)
 ros = RouteOptimizationSystem()
 
-# City coordinates (used by map)
+# City coordinates (for map rendering)
 city_coords = {
     "C1": [37.7749, -122.4194], "C2": [34.0522, -118.2437], "C3": [36.1699, -115.1398],
     "C4": [47.6062, -122.3321], "C5": [45.5152, -122.6784], "C6": [39.7392, -104.9903],
@@ -43,11 +43,10 @@ def index():
     result = None
     comparison_table = None
     comparison_results = None
-    region_label = None
     comparison_columns = []
+    region_label = None
     start_city = ""
     end_city = ""
-    express_path = False
     express_cities = []
 
     if request.method == "POST":
@@ -57,14 +56,13 @@ def index():
                 1: "West", 2: "Midwest", 3: "South", 4: "Northeast", 5: "Southeast"
             }[region_id]
 
-            express_path = request.form.get("express") == "yes"
+            mode = request.form.get("mode")  # 'normal' or 'express'
+            express_cities = request.form.getlist("express_cities")
             start_city = request.form.get("start_city", "").upper()
             end_city = request.form.get("end_city", "").upper()
-            selected_cities = request.form.getlist("express_cities")
 
-            if express_path:
-                # 🚀 Run express route
-                result = ros.find_express_time_route(region_id, selected_cities)
+            if mode == "express":
+                result = ros.find_express_time_route(region_id, express_cities)
                 result["optimized_for"] = "express"
                 result["city_coords"] = city_coords
             else:
@@ -74,8 +72,8 @@ def index():
                         region_id, start_city, end_city
                     )
                     comparison_table_df = comparison_table
-                    comparison_table = comparison_table_df.to_dict(orient="records") if comparison_table_df is not None else None
-                    comparison_columns = list(comparison_table_df.columns) if comparison_table_df is not None else []
+                    comparison_table = comparison_table_df.to_dict(orient="records")
+                    comparison_columns = list(comparison_table_df.columns)
                 else:
                     optimize_for = request.form.get("optimize_for") or "combined"
                     result = ros.find_optimal_route(region_id, start_city, end_city, optimize_for=optimize_for)
@@ -96,7 +94,6 @@ def index():
         region_label=region_label,
         start_label=start_city,
         end_label=end_city,
-        express=express_path,
         express_cities=express_cities
     )
 
