@@ -27,69 +27,69 @@
         </select>
       </div>
 
-      <div class="col-md-4 normal-mode">
+      <div class="col-md-4 normal-group">
         <label class="form-label">Start City:</label>
-        <select id="start_city" name="start_city" class="form-select"></select>
+        <select id="start_city" name="start_city" class="form-select" required></select>
       </div>
 
-      <div class="col-md-4 normal-mode">
+      <div class="col-md-4 normal-group">
         <label class="form-label">End City:</label>
-        <select id="end_city" name="end_city" class="form-select"></select>
+        <select id="end_city" name="end_city" class="form-select" required></select>
       </div>
 
       <div class="col-md-12">
-        <label class="form-label">Optimization Strategy:</label>
+        <label class="form-label">Route Mode:</label>
         <div class="form-check">
-          <input class="form-check-input" type="radio" name="express" id="express_no" value="no" checked>
-          <label class="form-check-label" for="express_no">Normal Route</label>
+          <input class="form-check-input" type="radio" name="express" id="normal" value="no" checked>
+          <label class="form-check-label" for="normal">🧭 Normal Route</label>
         </div>
         <div class="form-check">
-          <input class="form-check-input" type="radio" name="express" id="express_yes" value="yes">
-          <label class="form-check-label" for="express_yes">🚀 Express Time Route</label>
+          <input class="form-check-input" type="radio" name="express" id="express" value="yes">
+          <label class="form-check-label" for="express">🚀 Express Time Route</label>
         </div>
+      </div>
 
-        <div class="normal-mode mt-3">
-          <div class="form-check">
-            <input class="form-check-input" type="radio" name="compare" id="single" value="no" checked>
-            <label class="form-check-label" for="single">Single Strategy</label>
-          </div>
-          <div class="row mt-2">
-            <div class="col-md-4">
-              <select name="optimize_for" class="form-select" id="optimize_for">
-                <option value="time">Time</option>
-                <option value="distance">Distance</option>
-                <option value="weather">Weather</option>
-                <option value="combined">Combined</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-check mt-2">
-            <input class="form-check-input" type="radio" name="compare" id="compare" value="yes">
-            <label class="form-check-label" for="compare">Compare All Strategies</label>
+      <div class="col-md-12 normal-group">
+        <div class="form-check mt-3">
+          <input class="form-check-input" type="radio" name="compare" id="single" value="no" checked>
+          <label class="form-check-label" for="single">Single Strategy</label>
+        </div>
+        <div class="form-check mt-2">
+          <input class="form-check-input" type="radio" name="compare" id="compare" value="yes">
+          <label class="form-check-label" for="compare">Compare All Strategies</label>
+        </div>
+        <div class="row mt-2">
+          <div class="col-md-4">
+            <select name="optimize_for" class="form-select" id="optimize_for">
+              <option value="time">Time</option>
+              <option value="distance">Distance</option>
+              <option value="weather">Weather</option>
+              <option value="combined">Combined</option>
+            </select>
           </div>
         </div>
+      </div>
 
-        <div class="express-mode mt-3" style="display: none;">
-          <label class="form-label">Select 2–5 Cities:</label>
-          <select id="express_cities" name="express_cities" class="form-select" multiple required></select>
-          <small class="text-muted">Hold Ctrl (or Cmd) to select multiple cities</small>
-        </div>
+      <div class="col-md-12 express-group" style="display: none;">
+        <label class="form-label">Select 2–5 Cities (Express):</label>
+        <select name="express_cities" id="express_cities" class="form-select" multiple required></select>
+        <small class="text-muted">Hold Ctrl (or Cmd) to select multiple</small>
       </div>
     </div>
 
     <button type="submit" class="btn btn-primary mt-3">Find Route</button>
   </form>
 
-  <!-- ROUTE RESULT -->
+  <!-- ROUTE RESULTS -->
   {% if result %}
   <div class="card mt-4 p-4 shadow-sm bg-white">
     <h4>🧭 Route Result — Optimized for {{ result.optimized_for.title() }}</h4>
     <p><strong>Region:</strong> {{ region_label }}</p>
-    {% if result.optimized_for != 'express' %}
+    {% if result.optimized_for == 'express' %}
+    <p><strong>Cities:</strong> {{ express_cities | join(" → ") }}</p>
+    {% else %}
     <p><strong>Start City:</strong> {{ start_label }} &nbsp;&nbsp;
        <strong>End City:</strong> {{ end_label }}</p>
-    {% else %}
-    <p><strong>Cities:</strong> {{ express_cities | join(" → ") }}</p>
     {% endif %}
     <p><strong>Path:</strong> {{ result.path | join(" → ") }}</p>
     <p><strong>Total Distance:</strong> {{ result.total_distance }} miles</p>
@@ -145,35 +145,34 @@
 
   function populateCities(regionId) {
     const cities = cityRegions[regionId] || [];
-    const start = document.getElementById('start_city');
-    const end = document.getElementById('end_city');
-    const express = document.getElementById('express_cities');
-
-    start.innerHTML = '';
-    end.innerHTML = '';
-    express.innerHTML = '';
+    document.getElementById('start_city').innerHTML = '';
+    document.getElementById('end_city').innerHTML = '';
+    document.getElementById('express_cities').innerHTML = '';
     cities.forEach(city => {
-      start.appendChild(new Option(city, city));
-      end.appendChild(new Option(city, city));
-      express.appendChild(new Option(city, city));
+      document.getElementById('start_city').append(new Option(city, city));
+      document.getElementById('end_city').append(new Option(city, city));
+      document.getElementById('express_cities').append(new Option(city, city));
     });
   }
 
-  document.getElementById('region').addEventListener('change', function () {
-    populateCities(parseInt(this.value));
-  });
-
-  // Express toggle logic
-  function toggleExpressUI() {
-    const express = document.getElementById("express_yes").checked;
-    document.querySelectorAll(".normal-mode").forEach(el => el.style.display = express ? "none" : "block");
-    document.querySelectorAll(".express-mode").forEach(el => el.style.display = express ? "block" : "none");
+  function toggleMode() {
+    const express = document.getElementById('express').checked;
+    document.querySelectorAll(".normal-group").forEach(el => {
+      el.style.display = express ? "none" : "block";
+    });
+    document.querySelectorAll(".express-group").forEach(el => {
+      el.style.display = express ? "block" : "none";
+    });
   }
 
-  document.getElementById("express_yes").addEventListener("change", toggleExpressUI);
-  document.getElementById("express_no").addEventListener("change", toggleExpressUI);
-  toggleExpressUI();
+  document.getElementById("express").addEventListener("change", toggleMode);
+  document.getElementById("normal").addEventListener("change", toggleMode);
+  document.getElementById("region").addEventListener("change", () => {
+    populateCities(parseInt(document.getElementById('region').value));
+  });
+
   populateCities(parseInt(document.getElementById('region').value || "1"));
+  toggleMode();
 
   {% if result %}
   const cityCoords = {
