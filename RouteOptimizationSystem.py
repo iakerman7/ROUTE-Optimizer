@@ -756,8 +756,9 @@ class RouteOptimizationSystem:
         """
         print(f"\nFinding express time-optimized route for cities: {key_cities} in region {region_id}...")
     
-        if len(key_cities) != 5:
-            return {"error": "Exactly 5 cities must be specified for express route."}
+        if not (2 <= len(key_cities) <= 5):
+            return {"error": "Please select between 2 and 5 cities for express route."}
+
     
         self.build_graph(region_id, "time")
         G = self.graphs["time"]
