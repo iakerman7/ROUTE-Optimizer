@@ -19,11 +19,11 @@
       <div class="col-md-4">
         <label class="form-label">Region:</label>
         <select id="region" name="region" class="form-select" required>
-          <option value="1">West</option>
-          <option value="2">Midwest</option>
-          <option value="3">South</option>
-          <option value="4">Northeast</option>
-          <option value="5">Southeast</option>
+          <option value="1" {% if region_label == 'West' %}selected{% endif %}>West</option>
+          <option value="2" {% if region_label == 'Midwest' %}selected{% endif %}>Midwest</option>
+          <option value="3" {% if region_label == 'South' %}selected{% endif %}>South</option>
+          <option value="4" {% if region_label == 'Northeast' %}selected{% endif %}>Northeast</option>
+          <option value="5" {% if region_label == 'Southeast' %}selected{% endif %}>Southeast</option>
         </select>
       </div>
 
@@ -132,7 +132,7 @@
   {% endif %}
 </div>
 
-<!-- SCRIPTS -->
+<!-- JS Scripts -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
   const cityRegions = {
@@ -149,13 +149,26 @@
     const end = document.getElementById('end_city');
     const express = document.getElementById('express_cities');
 
+    const selectedStart = "{{ start_label }}";
+    const selectedEnd = "{{ end_label }}";
+    const selectedExpress = {{ express_cities | tojson }};
+
     start.innerHTML = '';
     end.innerHTML = '';
     express.innerHTML = '';
+
     cities.forEach(city => {
-      start.appendChild(new Option(city, city));
-      end.appendChild(new Option(city, city));
-      express.appendChild(new Option(city, city));
+      const startOption = new Option(city, city);
+      const endOption = new Option(city, city);
+      const expressOption = new Option(city, city);
+
+      if (city === selectedStart) startOption.selected = true;
+      if (city === selectedEnd) endOption.selected = true;
+      if (selectedExpress.includes(city)) expressOption.selected = true;
+
+      start.appendChild(startOption);
+      end.appendChild(endOption);
+      express.appendChild(expressOption);
     });
   }
 
@@ -174,7 +187,6 @@
     r.addEventListener("change", toggleMode);
   });
 
-  // Initial calls
   populateCities(parseInt(document.getElementById("region").value || "1"));
   toggleMode();
 
