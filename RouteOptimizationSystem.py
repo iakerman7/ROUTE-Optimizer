@@ -788,7 +788,7 @@ class RouteOptimizationSystem:
             total_time = 0
             valid = True
     
-            for i in range(4):  # 5 cities → 4 segments
+            for i in range(len(perm) - 1):
                 u, v = perm[i], perm[i + 1]
                 if tsp_graph.has_edge(u, v):
                     total_time += tsp_graph[u][v]['weight']
