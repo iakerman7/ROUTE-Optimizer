@@ -26,7 +26,6 @@ city_coords = {
     "C49": [33.5207, -86.8025], "C50": [27.9506, -82.4572]
 }
 
-# Load and build model once
 ros.load_data(
     routes_path="data/routes_table.csv",
     weather_path="data/routes_weather.csv",
@@ -57,7 +56,7 @@ def index():
                 1: "West", 2: "Midwest", 3: "South", 4: "Northeast", 5: "Southeast"
             }[region_id]
 
-            mode = request.form.get("mode")  # 'normal' or 'express'
+            mode = request.form.get("mode")
             express_cities = request.form.getlist("express_cities")
             start_city = request.form.get("start_city", "").upper()
             end_city = request.form.get("end_city", "").upper()
@@ -66,16 +65,6 @@ def index():
                 result = ros.find_express_time_route(region_id, express_cities)
                 result["optimized_for"] = "express"
                 result["city_coords"] = city_coords
-
-                # Safety score from real traffic data
-                safety_score, accident_found = ros.get_safety_score_on_path(result["detailed_path"])
-                result["safety_score"] = safety_score
-                result["safety_msg"] = (
-                    "🟠 Accident history detected — extra caution advised." if accident_found else
-                    "🟠 Relatively less safe route — drive carefully." if safety_score < 2 else
-                    "🟡 Moderately safe — stay alert." if safety_score <= 6 else
-                    "🟢 Route looks safe — good conditions expected."
-                )
 
             else:
                 compare_mode = request.form.get("compare", "no")
@@ -92,16 +81,6 @@ def index():
                     result["optimized_for"] = optimize_for
                     result["avg_weather_risk"] = round(result.get("avg_weather_risk", 0), 2)
                     result["city_coords"] = city_coords
-
-                    # Safety score from traffic + accidents
-                    safety_score, accident_found = ros.get_safety_score_on_path(result["detailed_path"] or result["path"])
-                    result["safety_score"] = safety_score
-                    result["safety_msg"] = (
-                        "🟠 Accident history detected — extra caution advised." if accident_found else
-                        "🟠 Relatively less safe route — drive carefully." if safety_score < 2 else
-                        "🟡 Moderately safe — stay alert." if safety_score <= 6 else
-                        "🟢 Route looks safe — good conditions expected."
-                    )
 
         except Exception as e:
             return f"Internal Server Error: {e}", 500
