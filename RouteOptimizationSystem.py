@@ -749,7 +749,7 @@ class RouteOptimizationSystem:
     
         Parameters:
             region_id (int): Region ID (1-5)
-            key_cities (list): List of 5 city IDs to visit
+            key_cities (list): List of 2–5 city IDs to visit
     
         Returns:
             dict: Optimized route and metrics
@@ -758,15 +758,14 @@ class RouteOptimizationSystem:
     
         if not (2 <= len(key_cities) <= 5):
             return {"error": "Please select between 2 and 5 cities for express route."}
-
     
         self.build_graph(region_id, "time")
         G = self.graphs["time"]
     
         import itertools
         tsp_graph = nx.Graph()
-    
-        # Step 1: Create a complete graph between the 5 selected cities
+
+        # Step 1: Create a complete graph between selected cities
         for i in range(len(key_cities)):
             for j in range(i + 1, len(key_cities)):
                 city1, city2 = key_cities[i], key_cities[j]
@@ -782,7 +781,7 @@ class RouteOptimizationSystem:
         best_time = float('inf')
         best_path = None
         best_detailed_path = None
-
+    
         for perm in itertools.permutations(key_cities):
             full_path = [perm[0]]
             total_time = 0
@@ -793,7 +792,6 @@ class RouteOptimizationSystem:
                 if tsp_graph.has_edge(u, v):
                     total_time += tsp_graph[u][v]['weight']
                     segment = tsp_graph[u][v]['path']
-                    # Avoid duplication while merging segments
                     if full_path[-1] == segment[0]:
                         full_path.extend(segment[1:])
                     else:
@@ -825,14 +823,26 @@ class RouteOptimizationSystem:
                 except nx.NetworkXNoPath:
                     pass  # fallback if segment really can't be measured
     
-        return {
-            "path": list(best_path),  # Cities visited once
-            "detailed_path": best_detailed_path,  # Real route (possibly with intermediate nodes)
+        result = {
+            "path": list(best_path),
+            "detailed_path": best_detailed_path,
             "total_time": round(best_time, 2),
             "total_distance": round(total_distance, 2),
             "optimization": "express_time",
             "visited_cities": len(set(best_path))
         }
+
+        safety_score, accident_found = self.get_safety_score_on_path(result["detailed_path"])
+        result["safety_score"] = safety_score
+        result["safety_msg"] = (
+            "🟠 Accident history detected — extra caution advised." if accident_found else
+            "🟠 Relatively less safe route — drive carefully." if safety_score < 2 else
+            "🟡 Moderately safe — stay alert." if safety_score <= 6 else
+            "🟢 Route looks safe — good conditions expected."
+        )
+    
+        return result
+    
 
 
 
@@ -1155,13 +1165,8 @@ class RouteOptimizationSystem:
             "optimization": optimize_for
         }
         
-        print(f"Route planning complete.")
-        print(f"Total distance: {results['total_distance']} miles")
-        print(f"Total time: {results['total_time']} hours")
-        print(f"Average weather risk: {results['avg_weather_risk']} (1-5 scale)")
-        print(f"Visited {results['visited_cities']} out of {results['expected_cities']} cities")
-        
         return results
+        
     
     def compare_optimization_strategies(self, region_id, start_city, end_city):
         """Compare different optimization strategies"""
@@ -1259,6 +1264,37 @@ class RouteOptimizationSystem:
         raw_score = -0.0106 * num_vehicles**2 + 0.0703 * num_vehicles + 0.8661
         scaled = max(1, min((raw_score * 100 - 90), 10))  # Clamp to 1–10
         return round(scaled, 1)
+    
+    def get_safety_score_on_path(self, path):
+            """
+            Calculates total vehicles and accident flags along the path,
+            returns adjusted safety score (1–10).
+            """
+            total_vehicles = 0
+            accident_flag = False
+
+            for i in range(len(path) - 1):
+                u, v = path[i], path[i + 1]
+        
+                match = self.traffic_df[
+                ((self.traffic_df["origin_id"] == u) & (self.traffic_df["destination_id"] == v)) |
+                ((self.traffic_df["origin_id"] == v) & (self.traffic_df["destination_id"] == u))
+            ]
+    
+            if not match.empty:
+                total_vehicles += match["no_of_vehicles"].max()
+                if match["accident"].any():
+                    accident_flag = True
+    
+        # Step 1: Traffic-based safety score
+            base_score = self.calculate_safety_score(total_vehicles)
+        
+            # Step 2: Adjust if accident history detected
+            if accident_flag:
+                base_score = max(1, base_score - 2)
+        
+            return round(base_score, 1), accident_flag
+
 
     
     def _get_season(self, month):

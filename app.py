@@ -26,6 +26,7 @@ city_coords = {
     "C49": [33.5207, -86.8025], "C50": [27.9506, -82.4572]
 }
 
+# Load and build model once
 ros.load_data(
     routes_path="data/routes_table.csv",
     weather_path="data/routes_weather.csv",
@@ -66,16 +67,15 @@ def index():
                 result["optimized_for"] = "express"
                 result["city_coords"] = city_coords
 
-                # Simulated safety score logic
-                total_vehicles = 1500
-                safety_score = ros.calculate_safety_score(total_vehicles)
+                # Safety score from real traffic data
+                safety_score, accident_found = ros.get_safety_score_on_path(result["detailed_path"])
                 result["safety_score"] = safety_score
-                if safety_score < 2:
-                    result["safety_msg"] = "🟠 Relatively less safe route — drive carefully."
-                elif safety_score <= 6:
-                    result["safety_msg"] = "🟡 Moderately safe — stay alert."
-                else:
-                    result["safety_msg"] = "🟢 Route looks safe — good conditions expected."
+                result["safety_msg"] = (
+                    "🟠 Accident history detected — extra caution advised." if accident_found else
+                    "🟠 Relatively less safe route — drive carefully." if safety_score < 2 else
+                    "🟡 Moderately safe — stay alert." if safety_score <= 6 else
+                    "🟢 Route looks safe — good conditions expected."
+                )
 
             else:
                 compare_mode = request.form.get("compare", "no")
@@ -93,16 +93,15 @@ def index():
                     result["avg_weather_risk"] = round(result.get("avg_weather_risk", 0), 2)
                     result["city_coords"] = city_coords
 
-                    # Simulated safety score logic
-                    total_vehicles = 1500
-                    safety_score = ros.calculate_safety_score(total_vehicles)
+                    # Safety score from traffic + accidents
+                    safety_score, accident_found = ros.get_safety_score_on_path(result["detailed_path"] or result["path"])
                     result["safety_score"] = safety_score
-                    if safety_score < 2:
-                        result["safety_msg"] = "🟠 Relatively less safe route — drive carefully."
-                    elif safety_score <= 6:
-                        result["safety_msg"] = "🟡 Moderately safe — stay alert."
-                    else:
-                        result["safety_msg"] = "🟢 Route looks safe — good conditions expected."
+                    result["safety_msg"] = (
+                        "🟠 Accident history detected — extra caution advised." if accident_found else
+                        "🟠 Relatively less safe route — drive carefully." if safety_score < 2 else
+                        "🟡 Moderately safe — stay alert." if safety_score <= 6 else
+                        "🟢 Route looks safe — good conditions expected."
+                    )
 
         except Exception as e:
             return f"Internal Server Error: {e}", 500
@@ -123,4 +122,3 @@ def index():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
-
