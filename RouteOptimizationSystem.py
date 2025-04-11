@@ -832,21 +832,13 @@ class RouteOptimizationSystem:
             "visited_cities": len(set(best_path))
         }
 
-        safety_score, accident_found = self.get_safety_score_on_path(result["detailed_path"])
-        result["safety_score"] = safety_score
-        result["safety_msg"] = (
-            "🟠 Accident history detected — extra caution advised." if accident_found else
-            "🟠 Relatively less safe route — drive carefully." if safety_score < 2 else
-            "🟡 Moderately safe — stay alert." if safety_score <= 6 else
-            "🟢 Route looks safe — good conditions expected."
-        )
     
         return result
     
 
 
 
-    
+
     def build_graph(self, region_id, optimize_for):
         """
         Build a NetworkX graph for route optimization.
