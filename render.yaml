@@ -6,7 +6,7 @@ services:
     name: chat-anonimo
     runtime: python
     plan: free
-    branch: claude/anonymous-group-chat-38fecc
+    branch: main
     buildCommand: pip install -r requirements-chat.txt
     startCommand: gunicorn chat_app:app --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 120
     envVars:
