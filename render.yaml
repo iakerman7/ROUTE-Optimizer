@@ -3,7 +3,9 @@
 # mensajes se guardan en memoria y deben compartirse entre peticiones.
 services:
   - type: web
-    name: chat-anonimo
+    # OJO: el nombre define la URL (https://<nombre>.onrender.com) y tiene que
+    # ser único en todo Render. "chat-anonimo" ya está ocupado por otra persona.
+    name: chat-anonimo-app
     runtime: python
     plan: free
     branch: main
