@@ -2,190 +2,472 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f7f7f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
   <title>Chat anónimo · {{ room }}</title>
   <style>
+    /* Estética iMessage (iOS). Modo claro y oscuro automáticos. */
     :root {
-      --bg: #0f1115;
-      --panel: #171a21;
-      --panel-2: #1f232c;
-      --text: #e6e8ec;
-      --muted: #8b93a1;
-      --accent: #4363d8;
-      --border: #2a2f3a;
+      --bg: #ffffff;
+      --header: rgba(247, 247, 247, 0.82);
+      --hair: rgba(0, 0, 0, 0.12);
+      --text: #000000;
+      --muted: #8e8e93;
+      --blue: #248bf5;
+      --blue-press: #1a75d1;
+      --bubble-other: #e9e9eb;
+      --bubble-other-text: #000000;
+      --input-bg: #ffffff;
+      --input-border: #d1d1d6;
+      --send-off: #c7c7cc;
     }
-    * { box-sizing: border-box; }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #000000;
+        --header: rgba(28, 28, 30, 0.82);
+        --hair: rgba(255, 255, 255, 0.16);
+        --text: #ffffff;
+        --muted: #98989f;
+        --blue: #248bf5;
+        --blue-press: #1a75d1;
+        --bubble-other: #26252a;
+        --bubble-other-text: #ffffff;
+        --input-bg: #1c1c1e;
+        --input-border: #38383a;
+        --send-off: #48484a;
+      }
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; }
     body {
       margin: 0;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+                   Roboto, "Helvetica Neue", sans-serif;
       background: var(--bg);
       color: var(--text);
-      height: 100vh;
       display: flex;
       flex-direction: column;
+      height: 100dvh;
+      overscroll-behavior: none;
     }
+
+    /* --- Barra superior estilo iOS --- */
     header {
-      padding: 12px 16px;
-      background: var(--panel);
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    header h1 { font-size: 16px; margin: 0; font-weight: 600; }
-    .room-tag {
-      background: var(--panel-2);
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      padding: 3px 10px;
-      font-size: 12px;
-      color: var(--muted);
-    }
-    .me {
-      margin-left: auto;
-      display: flex;
+      flex: 0 0 auto;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
       align-items: center;
       gap: 8px;
-      font-size: 13px;
+      padding: 8px 12px calc(8px + env(safe-area-inset-top, 0px));
+      padding-top: calc(8px + env(safe-area-inset-top, 0px));
+      background: var(--header);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      border-bottom: 0.5px solid var(--hair);
+      position: relative;
+      z-index: 5;
     }
-    .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-    button {
-      background: var(--panel-2);
-      color: var(--text);
-      border: 1px solid var(--border);
+    .titulo { text-align: center; min-width: 0; }
+    .titulo .sala {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .titulo .yo {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 1px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+    .titulo .yo .chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 15px; height: 15px;
+      border-radius: 50%;
+      font-size: 9px;
+      line-height: 1;
+    }
+    .acciones { display: flex; justify-content: flex-end; gap: 4px; }
+    .btn-ios {
+      background: none;
+      border: 0;
+      color: var(--blue);
+      font: inherit;
+      font-size: 15px;
+      padding: 6px 8px;
       border-radius: 8px;
-      padding: 6px 10px;
       cursor: pointer;
-      font-size: 13px;
     }
-    button:hover { background: #262b36; }
+    .btn-ios:active { opacity: 0.5; }
+    .btn-ios.icono { font-size: 17px; padding: 5px 8px; }
+
+    /* --- Lista de mensajes --- */
     #messages {
-      flex: 1;
+      flex: 1 1 auto;
       overflow-y: auto;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
+      -webkit-overflow-scrolling: touch;
+      padding: 10px 14px 14px;
     }
-    .msg { max-width: 75%; }
-    .msg .who { font-size: 12px; margin-bottom: 2px; }
-    .msg .bubble {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      padding: 8px 12px;
-      border-radius: 12px;
-      white-space: pre-wrap;
-      word-break: break-word;
-      line-height: 1.35;
-    }
-    .msg .ts { font-size: 11px; color: var(--muted); margin-top: 2px; }
-    .msg.mine { align-self: flex-end; text-align: right; }
-    .msg.mine .bubble {
-      background: var(--accent);
-      border-color: var(--accent);
-      color: white;
-    }
-    .system {
-      align-self: center;
+
+    .nota {
+      text-align: center;
       color: var(--muted);
       font-size: 12px;
-      font-style: italic;
+      line-height: 1.45;
+      margin: 18px auto 22px;
+      max-width: 300px;
     }
-    form {
+    .nota b { color: var(--text); font-weight: 600; }
+
+    .divisor {
+      text-align: center;
+      color: var(--muted);
+      font-size: 11px;
+      margin: 18px 0 10px;
+      letter-spacing: 0.1px;
+    }
+    .divisor b { font-weight: 600; color: var(--muted); }
+
+    /* Fila = una burbuja (+ avatar y nombre cuando toca) */
+    .row { display: flex; margin-top: 2px; }
+    .row.g-first { margin-top: 11px; }
+    .row.mine { justify-content: flex-end; }
+    .row.theirs { justify-content: flex-start; padding-left: 38px; position: relative; }
+
+    .avatar {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 28px; height: 28px;
+      border-radius: 50%;
       display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      line-height: 1;
+      user-select: none;
+    }
+
+    .stack { display: flex; flex-direction: column; min-width: 0; max-width: 100%; }
+    .row.mine .stack { align-items: flex-end; }
+
+    .nombre {
+      font-size: 11px;
+      color: var(--muted);
+      margin: 0 0 3px 12px;
+      font-weight: 400;
+      letter-spacing: 0.1px;
+    }
+
+    .bubble {
+      position: relative;
+      max-width: min(74%, 520px);
+      padding: 8px 14px;
+      border-radius: 19px;
+      font-size: 16px;
+      line-height: 1.34;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      letter-spacing: -0.1px;
+    }
+    .row.theirs .bubble { background: var(--bubble-other); color: var(--bubble-other-text); }
+    .row.mine .bubble { background: var(--blue); color: #fff; }
+
+    /* Colita de la última burbuja del grupo (truco clásico de iMessage) */
+    .row.g-last.theirs .bubble::before {
+      content: "";
+      position: absolute; z-index: 0;
+      bottom: 0; left: -7px;
+      width: 20px; height: 20px;
+      background: var(--bubble-other);
+      border-bottom-right-radius: 16px 14px;
+    }
+    .row.g-last.theirs .bubble::after {
+      content: "";
+      position: absolute; z-index: 1;
+      bottom: 0; left: -26px;
+      width: 26px; height: 20px;
+      background: var(--bg);
+      border-bottom-right-radius: 10px;
+    }
+    .row.g-last.mine .bubble::before {
+      content: "";
+      position: absolute; z-index: 0;
+      bottom: 0; right: -7px;
+      width: 20px; height: 20px;
+      background: var(--blue);
+      border-bottom-left-radius: 16px 14px;
+    }
+    .row.g-last.mine .bubble::after {
+      content: "";
+      position: absolute; z-index: 1;
+      bottom: 0; right: -26px;
+      width: 26px; height: 20px;
+      background: var(--bg);
+      border-bottom-left-radius: 10px;
+    }
+
+    .recibo {
+      text-align: right;
+      font-size: 11px;
+      color: var(--muted);
+      margin: 3px 4px 0 0;
+      letter-spacing: 0.1px;
+    }
+
+    /* Entrada nueva: el "pop" de iMessage */
+    @keyframes pop {
+      from { transform: scale(0.94) translateY(6px); opacity: 0; }
+      to   { transform: scale(1) translateY(0); opacity: 1; }
+    }
+    .row.nuevo .bubble { animation: pop 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
+    @media (prefers-reduced-motion: reduce) {
+      .row.nuevo .bubble { animation: none; }
+    }
+
+    /* --- Barra de escritura --- */
+    form {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: flex-end;
       gap: 8px;
-      padding: 12px 16px;
-      background: var(--panel);
-      border-top: 1px solid var(--border);
+      padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+      background: var(--header);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      border-top: 0.5px solid var(--hair);
     }
+    .campo { position: relative; flex: 1; min-width: 0; }
     #text {
-      flex: 1;
-      background: var(--panel-2);
+      width: 100%;
+      background: var(--input-bg);
       color: var(--text);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 10px 12px;
-      font-size: 14px;
-      resize: none;
-      max-height: 120px;
+      border: 1px solid var(--input-border);
+      border-radius: 19px;
+      padding: 8px 42px 8px 14px;
       font-family: inherit;
+      font-size: 16px;
+      line-height: 1.3;
+      resize: none;
+      max-height: 132px;
+      overflow-y: auto;
     }
-    #text:focus { outline: none; border-color: var(--accent); }
-    .send-btn { background: var(--accent); border-color: var(--accent); color: white; padding: 0 18px; }
+    #text:focus { outline: none; border-color: var(--blue); }
+    #text::placeholder { color: var(--muted); }
+    .send {
+      position: absolute;
+      right: 4px;
+      bottom: 4px;
+      width: 29px; height: 29px;
+      border: 0;
+      border-radius: 50%;
+      background: var(--blue);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 0;
+      transition: background 0.15s ease;
+    }
+    .send:disabled { background: var(--send-off); cursor: default; }
+    .send:not(:disabled):active { background: var(--blue-press); }
+    .send svg { width: 17px; height: 17px; display: block; }
   </style>
 </head>
 <body>
   <header>
-    <h1>💬 Chat anónimo</h1>
-    <span class="room-tag">sala: {{ room }}</span>
-    <button id="copiar" title="Copiar enlace de invitación">Invitar</button>
-    <div class="me">
-      <span class="dot" id="mecolor" style="background: {{ color }}"></span>
-      <span id="mealias">{{ alias }}</span>
-      <button id="regenerar" title="Aparecer como alguien nuevo">↻</button>
+    <div></div>
+    <div class="titulo">
+      <div class="sala">{{ room }}</div>
+      <div class="yo">
+        eres
+        <span class="chip" id="mecolor" style="background: {{ color }}" aria-hidden="true">{{ emoji }}</span>
+        <span id="mealias">{{ alias }}</span>
+      </div>
+    </div>
+    <div class="acciones">
+      <button class="btn-ios" id="copiar" type="button" title="Copiar enlace de invitación">Invitar</button>
+      <button class="btn-ios icono" id="regenerar" type="button" title="Aparecer como alguien nuevo" aria-label="Nueva identidad">↻</button>
     </div>
   </header>
 
   <div id="messages">
-    <div class="system">Estás en la sala «{{ room }}». Nadie sabe quién eres. Tu alias: {{ alias }}</div>
+    <div class="nota">
+      Estás en <b>{{ room }}</b> como <b>{{ emoji }} {{ alias }}</b>.<br>
+      Nadie ve nombres reales, emails ni direcciones IP.
+    </div>
   </div>
 
   <form id="form">
-    <textarea id="text" rows="1" placeholder="Escribe un mensaje anónimo…" autocomplete="off"></textarea>
-    <button class="send-btn" type="submit">Enviar</button>
+    <div class="campo">
+      <textarea id="text" rows="1" placeholder="Mensaje anónimo" autocomplete="off"
+                autocapitalize="sentences" enterkeyhint="send"></textarea>
+      <button class="send" id="send" type="submit" disabled aria-label="Enviar">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 19V6M12 6l-6 6M12 6l6 6" stroke="currentColor"
+                stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
   </form>
 
   <script>
     const room = {{ room|tojson }};
-    let lastId = 0;
+    let MY_PID = {{ pid|tojson }};
 
     const box = document.getElementById('messages');
     const form = document.getElementById('form');
     const text = document.getElementById('text');
+    const sendBtn = document.getElementById('send');
+    const nota = box.querySelector('.nota');
 
-    // Recuperamos el pid de la sesión a partir del primer mensaje propio.
-    // Como no lo exponemos directo, marcamos "mío" comparando al enviar.
-    const sentIds = new Set();
+    let msgs = [];               // historial completo de la sala
+    let lastId = 0;              // último id recibido del servidor
+    const animados = new Set();  // ids ya animados, para no repetir el "pop"
+    const vistos = new Set();    // ids ya en msgs, para no duplicar burbujas
 
-    function esc(s) {
-      const d = document.createElement('div');
-      d.textContent = s;
-      return d.innerHTML;
+    // Un mensaje puede llegar por dos vías a la vez: la respuesta de /send y un
+    // poll que ya iba en vuelo con un "since" anterior. Este filtro evita que
+    // se pinte dos veces.
+    function agregar(m) {
+      if (vistos.has(m.id)) return false;
+      vistos.add(m.id);
+      msgs.push(m);
+      if (m.id > lastId) lastId = m.id;
+      return true;
     }
 
-    function render(m, mine) {
-      const wrap = document.createElement('div');
-      wrap.className = 'msg' + (mine ? ' mine' : '');
-      wrap.innerHTML =
-        '<div class="who" style="color:' + m.color + '">' + esc(m.alias) + '</div>' +
-        '<div class="bubble">' + esc(m.text) + '</div>' +
-        '<div class="ts">' + esc(m.ts) + '</div>';
-      box.appendChild(wrap);
-      box.scrollTop = box.scrollHeight;
+    const GRUPO_MS = 2 * 60 * 1000;    // burbujas del mismo autor se agrupan
+    const DIVISOR_MS = 15 * 60 * 1000; // separador de hora tras un silencio
+
+    function pegadoAbajo() {
+      return box.scrollHeight - box.scrollTop - box.clientHeight < 90;
+    }
+    function alFondo() { box.scrollTop = box.scrollHeight; }
+
+    function hora(ms) {
+      return new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    }
+    function etiquetaFecha(ms) {
+      const d = new Date(ms), hoy = new Date();
+      const ayer = new Date(hoy);
+      ayer.setDate(hoy.getDate() - 1);
+      if (d.toDateString() === hoy.toDateString()) return 'Hoy';
+      if (d.toDateString() === ayer.toDateString()) return 'Ayer';
+      return d.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' });
+    }
+
+    function el(tag, cls, txt) {
+      const n = document.createElement(tag);
+      if (cls) n.className = cls;
+      if (txt !== undefined) n.textContent = txt;  // textContent = nada de HTML inyectado
+      return n;
+    }
+
+    function pintar() {
+      const seguir = pegadoAbajo();
+
+      // Limpiamos todo menos la nota inicial y repintamos: hace falta porque
+      // agrupar burbujas depende del mensaje anterior Y del siguiente.
+      box.textContent = '';
+      if (msgs.length === 0) { box.appendChild(nota); alFondo(); return; }
+
+      // 1) Dónde va cada separador de hora.
+      const divisor = msgs.map((m, i) =>
+        i === 0 || m.t - msgs[i - 1].t > DIVISOR_MS);
+
+      for (let i = 0; i < msgs.length; i++) {
+        const m = msgs[i], prev = msgs[i - 1], next = msgs[i + 1];
+        const mio = m.pid === MY_PID;
+
+        if (divisor[i]) {
+          const d = el('div', 'divisor');
+          d.appendChild(el('b', null, etiquetaFecha(m.t)));
+          d.appendChild(document.createTextNode(' ' + hora(m.t)));
+          box.appendChild(d);
+        }
+
+        // 2) Agrupación: mismo autor, seguidos y cerca en el tiempo.
+        const primero = divisor[i] || !prev || prev.pid !== m.pid || m.t - prev.t > GRUPO_MS;
+        const ultimo = !next || next.pid !== m.pid || next.t - m.t > GRUPO_MS || divisor[i + 1];
+
+        const row = el('div', 'row ' + (mio ? 'mine' : 'theirs')
+          + (primero ? ' g-first' : '') + (ultimo ? ' g-last' : '')
+          + (animados.has(m.id) ? '' : ' nuevo'));
+        animados.add(m.id);
+
+        // Avatar solo en la última burbuja del grupo (como en iMessage).
+        if (!mio && ultimo) {
+          const av = el('div', 'avatar', m.emoji || '🙂');
+          av.style.background = m.color;
+          row.appendChild(av);
+        }
+
+        const stack = el('div', 'stack');
+        if (!mio && primero) stack.appendChild(el('div', 'nombre', m.alias));
+        stack.appendChild(el('div', 'bubble', m.text));
+        row.appendChild(stack);
+        box.appendChild(row);
+      }
+
+      // 3) "Entregado" bajo el último mensaje, solo si es mío.
+      const fin = msgs[msgs.length - 1];
+      if (fin && fin.pid === MY_PID) box.appendChild(el('div', 'recibo', 'Entregado'));
+
+      if (seguir) alFondo();
     }
 
     async function poll() {
       try {
         const r = await fetch('/messages?room=' + encodeURIComponent(room) + '&since=' + lastId);
         const data = await r.json();
-        for (const m of data.messages) {
-          lastId = Math.max(lastId, m.id);
-          render(m, sentIds.has(m.id));
-        }
+        let hubo = false;
+        for (const m of data.messages) hubo = agregar(m) || hubo;
+        if (!hubo) return;
+        msgs.sort((a, b) => a.id - b.id);
+        pintar();
       } catch (e) { /* reintenta en el siguiente ciclo */ }
     }
+
+    // La caja de texto crece con el contenido, como en iMessage.
+    function ajustarAlto() {
+      text.style.height = 'auto';
+      text.style.height = Math.min(text.scrollHeight, 132) + 'px';
+      sendBtn.disabled = text.value.trim() === '';
+    }
+    text.addEventListener('input', ajustarAlto);
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const t = text.value.trim();
       if (!t) return;
       text.value = '';
-      const body = new URLSearchParams({ room, text: t });
-      const r = await fetch('/send', { method: 'POST', body });
-      const data = await r.json();
-      if (data.ok) {
-        sentIds.add(data.message.id);
+      ajustarAlto();
+      try {
+        const r = await fetch('/send', {
+          method: 'POST',
+          body: new URLSearchParams({ room, text: t }),
+        });
+        const data = await r.json();
+        if (data.ok && agregar(data.message)) {
+          msgs.sort((a, b) => a.id - b.id);
+          pintar();
+          alFondo();  // al enviar siempre bajamos
+        }
+      } catch (err) {
+        text.value = t;  // no se perdió el mensaje si falló la red
+        ajustarAlto();
       }
     });
 
@@ -199,9 +481,9 @@
 
     document.getElementById('copiar').addEventListener('click', async () => {
       const url = window.location.origin + '/?room=' + encodeURIComponent(room);
+      const b = document.getElementById('copiar');
       try {
         await navigator.clipboard.writeText(url);
-        const b = document.getElementById('copiar');
         b.textContent = '¡Copiado!';
         setTimeout(() => (b.textContent = 'Invitar'), 1500);
       } catch (e) {
@@ -212,10 +494,13 @@
     document.getElementById('regenerar').addEventListener('click', async () => {
       const r = await fetch('/nueva-identidad', { method: 'POST' });
       const data = await r.json();
-      if (data.ok) {
-        document.getElementById('mealias').textContent = data.alias;
-        document.getElementById('mecolor').style.background = data.color;
-      }
+      if (!data.ok) return;
+      MY_PID = data.pid;  // tus mensajes viejos quedan como los del anónimo anterior
+      document.getElementById('mealias').textContent = data.alias;
+      const chip = document.getElementById('mecolor');
+      chip.textContent = data.emoji;
+      chip.style.background = data.color;
+      pintar();
     });
 
     poll();
