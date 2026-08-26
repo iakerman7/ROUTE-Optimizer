@@ -1,0 +1,16 @@
+# Configuración de despliegue para Render (https://render.com).
+# Despliega el chat anónimo (chat_app.py). Un solo worker porque los
+# mensajes se guardan en memoria y deben compartirse entre peticiones.
+services:
+  - type: web
+    name: chat-anonimo
+    runtime: python
+    plan: free
+    branch: claude/anonymous-group-chat-38fecc
+    buildCommand: pip install -r requirements-chat.txt
+    startCommand: gunicorn chat_app:app --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 120
+    envVars:
+      # Clave de sesión estable: Render la genera una vez y la mantiene,
+      # así los alias anónimos no se invalidan en cada reinicio.
+      - key: CHAT_SECRET_KEY
+        generateValue: true
