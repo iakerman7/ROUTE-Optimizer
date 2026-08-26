@@ -117,7 +117,8 @@
       overflow-y: auto;
       /* La máscara de la colita sobresale del ancho de la burbuja; recortarla
          evita una barra de scroll horizontal (es del color del fondo, así que
-         no se pierde nada visible). */
+         no se pierde nada visible). No sirve "clip": con overflow-y: auto el
+         navegador lo degrada a hidden. */
       overflow-x: hidden;
       -webkit-overflow-scrolling: touch;
       padding: 10px 14px 14px;
