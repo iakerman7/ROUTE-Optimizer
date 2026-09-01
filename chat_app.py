@@ -17,6 +17,9 @@ Mecánicas:
   por 1 minuto.
 - 🥇 Tarjeta dorada: si la mayoría la da, el mensaje queda destacado.
 - Replies (citas), presencia (online count), aviso de entrar/salir y typing.
+- Notas de voz: se graban en el navegador y se guardan en memoria junto con
+  el resto del mensaje (mismo límite de 500 por sala); llevan reactions,
+  replies y tarjetas igual que un mensaje de texto.
 
 El mute y el presupuesto de tarjetas son evadibles borrando la cookie del
 dispositivo (o modo incógnito): sin login no hay forma real de impedirlo. Es
@@ -29,17 +32,22 @@ Luego abrir http://localhost:5000 en el navegador.
 
 import hashlib
 import os
+import re
 import secrets
 import threading
 import time
 from collections import defaultdict, deque
 
-from flask import Flask, g, jsonify, render_template, request
+from flask import Flask, Response, g, jsonify, render_template, request
 
 app = Flask(__name__)
 # No se usa para identidad (va en la cookie de dispositivo propia), pero se
 # deja puesta por si algo futuro necesita una session firmada.
 app.secret_key = os.environ.get("CHAT_SECRET_KEY", secrets.token_hex(32))
+# Tope duro por request: una nota de voz de ~60s en opus no pasa de un par de
+# cientos de KB; esto es solo para que nadie mande algo absurdamente grande y
+# se coma la memoria del servicio free de Render.
+app.config["MAX_CONTENT_LENGTH"] = 4 * 1024 * 1024
 
 # --- Cookie de dispositivo (identidad oculta y persistente) -------------------
 COOKIE = "chat_device"
@@ -53,6 +61,11 @@ ONLINE_TTL = 15         # segundos sin sondear para seguir "en línea"
 TYPING_TTL = 4          # segundos que dura el indicador de "escribiendo"
 MIN_VOTES = 3           # piso de votos para roja/dorada
 REACTIONS = {"❤️", "😂", "👍", "😮", "😢", "🔥", "🟨", "🥇"}
+VOICE_MAX_SECONDS = 60      # duración máxima de una nota de voz
+VOICE_MAX_BYTES = 3 * 1024 * 1024  # tope por nota, aparte del límite del request
+# El mimetype lo manda el navegador; lo restringimos a un patrón inofensivo
+# antes de reflejarlo en el header Content-Type de /voice/<id>.
+_MIME_RE = re.compile(r"^audio/[a-zA-Z0-9.+-]{1,40}$")
 
 # --- Estado en memoria (requiere UN SOLO worker; ver Procfile) ----------------
 _lock = threading.Lock()
@@ -145,10 +158,12 @@ def serialize(msg, pid):
         return {"id": msg["id"], "kind": "system", "text": msg["text"]}
     counts = {e: len(s) for e, s in msg["reactions"].items() if s}
     mine = [e for e, s in msg["reactions"].items() if pid in s]
+    audio = msg.get("audio")
     return {
         "id": msg["id"],
         "kind": "msg",
         "text": msg["text"],
+        "audio": {"dur": audio["dur"]} if audio else None,
         "ts": msg["ts"],
         "is_mine": msg["author_pid"] == pid,
         "reply": msg.get("reply"),
@@ -156,6 +171,20 @@ def serialize(msg, pid):
         "mine": mine,
         "status": msg["status"],
     }
+
+
+def _reply_lookup(room):
+    """Arma el {"id", "text"} de la cita para ?reply_to=<id>, con un texto de
+    respaldo si el original era una nota de voz sin texto."""
+    try:
+        rid = int(request.form.get("reply_to", ""))
+    except (ValueError, TypeError):
+        return None
+    for m in rooms[room]:
+        if m["id"] == rid and m["kind"] == "msg":
+            texto = m["text"] or ("🎤 Nota de voz" if m.get("audio") else "")
+            return {"id": rid, "text": texto[:120]}
+    return None
 
 
 # --- Rutas --------------------------------------------------------------------
@@ -239,15 +268,7 @@ def send():
         if restante > 0:
             return jsonify(ok=False, muted=restante), 403
 
-        reply = None
-        try:
-            rid = int(request.form.get("reply_to", ""))
-            for m in rooms[room]:
-                if m["id"] == rid and m["kind"] == "msg":
-                    reply = {"id": rid, "text": m["text"][:120]}
-                    break
-        except (ValueError, TypeError):
-            pass
+        reply = _reply_lookup(room)
 
         _next_id[room] += 1
         msg = {
@@ -259,10 +280,77 @@ def send():
             "reply": reply,
             "reactions": defaultdict(set),
             "status": None,
+            "audio": None,
         }
         rooms[room].append(msg)
         typing[room].pop(pid, None)
     return jsonify(ok=True, id=msg["id"])
+
+
+@app.route("/voice", methods=["POST"])
+def voice():
+    """Recibe una nota de voz grabada en el navegador (multipart, campo
+    'audio') y la guarda como un mensaje más: reactions, replies y tarjetas
+    funcionan igual que con texto."""
+    pid = mi_pid()
+    room = sala_actual()
+    now = time.time()
+
+    f = request.files.get("audio")
+    if f is None:
+        return jsonify(ok=False, error="sin audio"), 400
+    mime = (f.mimetype or "").split(";")[0].strip()
+    if not _MIME_RE.match(mime):
+        mime = "audio/webm"
+    data = f.read(VOICE_MAX_BYTES + 1)
+    if not data:
+        return jsonify(ok=False, error="audio vacío"), 400
+    if len(data) > VOICE_MAX_BYTES:
+        return jsonify(ok=False, error="nota de voz muy larga"), 413
+    try:
+        dur = max(0.0, min(float(request.form.get("dur", 0)), VOICE_MAX_SECONDS))
+    except ValueError:
+        dur = 0.0
+
+    with _lock:
+        presence[room][pid] = now
+        restante = int(mutes.get(pid, 0) - now)
+        if restante > 0:
+            return jsonify(ok=False, muted=restante), 403
+
+        reply = _reply_lookup(room)
+
+        _next_id[room] += 1
+        msg = {
+            "id": _next_id[room],
+            "kind": "msg",
+            "author_pid": pid,
+            "text": "",
+            "ts": time.strftime("%H:%M"),
+            "reply": reply,
+            "reactions": defaultdict(set),
+            "status": None,
+            "audio": {"data": data, "mime": mime, "dur": dur},
+        }
+        rooms[room].append(msg)
+        typing[room].pop(pid, None)
+    return jsonify(ok=True, id=msg["id"])
+
+
+@app.route("/voice/<int:mid>")
+def voice_file(mid):
+    """Sirve los bytes de una nota de voz. El id por sí solo no alcanza
+    (los ids son incrementales por sala), así que también hace falta ?room=."""
+    mi_pid()  # mantiene viva la cookie de dispositivo
+    room = sala_actual()
+    with _lock:
+        msg = next((m for m in rooms[room] if m["id"] == mid and m["kind"] == "msg"), None)
+        audio = msg.get("audio") if msg else None
+    if not audio:
+        return ("", 404)
+    resp = Response(audio["data"], mimetype=audio["mime"])
+    resp.headers["Cache-Control"] = "private, max-age=86400, immutable"
+    return resp
 
 
 @app.route("/react", methods=["POST"])

@@ -117,6 +117,19 @@
     .chip .cnt { color: #555; font-variant-numeric: tabular-nums; }
     .time { font-size: 11px; color: var(--muted-c); margin: 3px 12px 0; }
 
+    /* --- Nota de voz --- */
+    .bubble.voice { display: flex; align-items: center; gap: 8px; min-width: 168px; cursor: default; }
+    .voice-play {
+      flex: 0 0 auto; width: 28px; height: 28px; border-radius: 50%; border: none;
+      background: rgba(0,0,0,.08); color: inherit; font-size: 13px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; padding: 0;
+    }
+    .out .voice-play { background: rgba(255,255,255,.25); }
+    .voice-track { flex: 1; height: 4px; border-radius: 2px; background: rgba(0,0,0,.15); cursor: pointer; overflow: hidden; }
+    .out .voice-track { background: rgba(255,255,255,.35); }
+    .voice-fill { height: 100%; width: 0%; background: currentColor; border-radius: 2px; }
+    .voice-time { flex: 0 0 auto; font-size: 12px; font-variant-numeric: tabular-nums; opacity: .85; }
+
     /* --- Popover de acciones (reactions + reply) --- */
     #popover {
       position: fixed; z-index: 50; display: none;
@@ -147,6 +160,13 @@
       background: #ffe5e3; color: var(--red); font-size: 14px; font-weight: 500;
       padding: 10px; border-top: 0.5px solid #ffb3ad;
     }
+    #recordBar { display: none; align-items: center; gap: 8px; padding: 8px 10px; }
+    .rec-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--red); animation: recpulse 1s ease-in-out infinite; flex: 0 0 auto; }
+    @keyframes recpulse { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+    #recTime { font-size: 15px; font-variant-numeric: tabular-nums; flex: 0 0 auto; }
+    .rec-spacer { flex: 1; }
+    #recCancel { flex: 0 0 auto; font-size: 20px; }
+
     .composer { display: flex; align-items: flex-end; gap: 8px; padding: 8px 10px; }
     .field {
       flex: 1; display: flex; align-items: center; border: 1px solid var(--border);
@@ -192,13 +212,25 @@
       <span class="rb-x" id="rbCancel">✕</span>
     </div>
     <div id="muteBar">🔴 Tarjeta roja — no puedes escribir (<span id="muteCount">1:00</span>)</div>
-    <div class="composer">
+    <div id="recordBar">
+      <span class="rec-dot"></span>
+      <span id="recTime">0:00</span>
+      <span class="rec-spacer"></span>
+      <button class="icon-btn" id="recCancel" type="button" aria-label="Cancelar nota de voz">✕</button>
+      <button class="send" id="recSend" type="button" aria-label="Enviar nota de voz">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+    <div class="composer" id="composerRow">
       <div class="field">
         <textarea id="text" rows="1" placeholder="Mensaje" autocomplete="off" enterkeyhint="send"></textarea>
       </div>
-      <button class="send" id="sendBtn" type="button" disabled aria-label="Enviar">
+      <button class="send" id="sendBtn" type="button" aria-label="Grabar nota de voz">
         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 19V5M12 5l-6 6M12 5l6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M19 11a7 7 0 0 1-14 0M12 18v3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </button>
     </div>
@@ -207,6 +239,7 @@
   <script>
     const room = {{ room|tojson }};
     const EMOJIS = ["❤️","😂","👍","😮","😢","🔥","🟨","🥇"];
+    const VOICE_MAX_SECONDS = 60;
     let lastId = 0;
     let lastSide = null; // no hay alias; se usa solo para separar bloques por lado
     let replyingTo = null;
@@ -217,6 +250,17 @@
     const sendBtn = document.getElementById('sendBtn');
     const popover = document.getElementById('popover');
     const nodes = new Map(); // id -> {row, reactsEl}
+
+    const MIC_ICON = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">'
+      + '<path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
+      + '<path d="M19 11a7 7 0 0 1-14 0M12 18v3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const SEND_ICON = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">'
+      + '<path d="M12 19V5M12 5l-6 6M12 5l6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+    function fmtDur(s) {
+      s = Math.max(0, Math.round(s || 0));
+      return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+    }
 
     const esc = (s) => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
 
@@ -235,10 +279,11 @@
       const row = document.createElement('div');
       row.className = 'row ' + side + fresh;
       row.dataset.id = m.id;
+      row.dataset.quote = m.audio ? '🎤 Nota de voz' : m.text;
 
       let html = '';
       if (m.reply) html += '<div class="quote">↩︎ ' + esc(m.reply.text) + '</div>';
-      html += '<div class="bubble">' + esc(m.text) + '</div>';
+      html += m.audio ? '<div class="bubble voice"></div>' : '<div class="bubble">' + esc(m.text) + '</div>';
       html += '<div class="flag"></div>';
       html += '<div class="reacts"></div>';
       html += '<div class="time">' + esc(m.ts) + '</div>';
@@ -246,10 +291,57 @@
 
       const bubble = row.querySelector('.bubble');
       bubble.addEventListener('click', (e) => { e.stopPropagation(); openMenu(m.id, bubble); });
+      if (m.audio) buildVoicePlayer(bubble, m.id, m.audio.dur);
 
       box.appendChild(row);
       nodes.set(m.id, { row, reactsEl: row.querySelector('.reacts') });
       applyState(m.id, m);
+    }
+
+    function buildVoicePlayer(bubble, id, fallbackDur) {
+      bubble.innerHTML = '<button type="button" class="voice-play">▶</button>'
+        + '<div class="voice-track"><div class="voice-fill"></div></div>'
+        + '<span class="voice-time">' + fmtDur(fallbackDur) + '</span>';
+      const playBtn = bubble.querySelector('.voice-play');
+      const trackEl = bubble.querySelector('.voice-track');
+      const fillEl = bubble.querySelector('.voice-fill');
+      const timeEl = bubble.querySelector('.voice-time');
+      let audio = null;
+
+      function ensureAudio() {
+        if (audio) return audio;
+        audio = new Audio('/voice/' + id + '?room=' + encodeURIComponent(room));
+        audio.preload = 'none';
+        audio.addEventListener('timeupdate', () => {
+          const dur = audio.duration || fallbackDur;
+          fillEl.style.width = (dur ? (audio.currentTime / dur) * 100 : 0) + '%';
+          timeEl.textContent = fmtDur(dur - audio.currentTime);
+        });
+        audio.addEventListener('ended', () => {
+          audio.currentTime = 0;
+          playBtn.textContent = '▶'; fillEl.style.width = '0%'; timeEl.textContent = fmtDur(fallbackDur);
+        });
+        return audio;
+      }
+      playBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        ensureAudio();
+        if (audio.paused) {
+          audio.play()
+            .then(() => { playBtn.textContent = '⏸'; })
+            .catch(() => { flash('No se pudo reproducir la nota de voz'); });
+        } else {
+          audio.pause();
+          playBtn.textContent = '▶';
+        }
+      });
+      trackEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        ensureAudio();
+        const r = trackEl.getBoundingClientRect();
+        const pct = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+        if (audio.duration) audio.currentTime = pct * audio.duration;
+      });
     }
 
     function applyState(id, s) {
@@ -313,7 +405,7 @@
 
     function startReply(id) {
       const n = nodes.get(id);
-      const t = n ? n.row.querySelector('.bubble').textContent : '';
+      const t = n ? n.row.dataset.quote : '';
       replyingTo = id;
       document.getElementById('rbText').textContent = '↩︎ ' + t;
       document.getElementById('replyBar').style.display = 'flex';
@@ -339,16 +431,111 @@
     text.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); }
     });
-    sendBtn.addEventListener('click', enviar);
+    sendBtn.addEventListener('click', () => {
+      if (text.value.trim()) enviar();
+      else startRecording();
+    });
 
     let lastTyping = 0;
     function autosize() { text.style.height = 'auto'; text.style.height = Math.min(text.scrollHeight, 120) + 'px'; }
-    function updateSendState() { sendBtn.disabled = text.value.trim().length === 0 || Date.now() < muteUntil; }
+    function updateSendState() {
+      sendBtn.disabled = Date.now() < muteUntil;
+      sendBtn.innerHTML = text.value.trim() ? SEND_ICON : MIC_ICON;
+      sendBtn.setAttribute('aria-label', text.value.trim() ? 'Enviar' : 'Grabar nota de voz');
+    }
     text.addEventListener('input', () => {
       autosize(); updateSendState();
       const now = Date.now();
       if (now - lastTyping > 2000) { lastTyping = now; fetch('/typing', { method: 'POST', body: new URLSearchParams({ room }) }).catch(() => {}); }
     });
+
+    // --- Notas de voz ---------------------------------------------------------
+    let mediaRecorder = null, mediaChunks = [], mediaStream = null, recStart = 0, recTimer = null, recMime = '';
+
+    function pickMime() {
+      if (!window.MediaRecorder || !MediaRecorder.isTypeSupported) return '';
+      for (const o of ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus']) {
+        if (MediaRecorder.isTypeSupported(o)) return o;
+      }
+      return '';
+    }
+
+    async function startRecording() {
+      if (Date.now() < muteUntil) return;
+      if (!navigator.mediaDevices || !window.MediaRecorder) { flash('Tu navegador no soporta notas de voz'); return; }
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (e) {
+        flash('No se pudo acceder al micrófono'); return;
+      }
+      mediaStream = stream;
+      recMime = pickMime();
+      mediaChunks = [];
+      mediaRecorder = new MediaRecorder(stream, recMime ? { mimeType: recMime } : undefined);
+      mediaRecorder.addEventListener('dataavailable', (e) => { if (e.data && e.data.size > 0) mediaChunks.push(e.data); });
+      mediaRecorder.start();
+      recStart = Date.now();
+      document.getElementById('composerRow').style.display = 'none';
+      document.getElementById('recordBar').style.display = 'flex';
+      tickRecTime();
+      recTimer = setInterval(tickRecTime, 250);
+    }
+
+    function tickRecTime() {
+      const secs = (Date.now() - recStart) / 1000;
+      document.getElementById('recTime').textContent = fmtDur(secs);
+      if (secs >= VOICE_MAX_SECONDS) finishRecording();
+    }
+
+    function stopTracks() {
+      if (mediaStream) { mediaStream.getTracks().forEach((t) => t.stop()); mediaStream = null; }
+    }
+
+    function resetRecordUI() {
+      clearInterval(recTimer); recTimer = null;
+      document.getElementById('recordBar').style.display = 'none';
+      document.getElementById('composerRow').style.display = 'flex';
+      document.getElementById('recTime').textContent = '0:00';
+    }
+
+    function cancelRecording() {
+      if (!mediaRecorder) return;
+      mediaRecorder.onstop = stopTracks;
+      mediaChunks = [];
+      if (mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+      mediaRecorder = null;
+      resetRecordUI();
+    }
+
+    function finishRecording() {
+      if (!mediaRecorder) return;
+      const dur = (Date.now() - recStart) / 1000;
+      const mime = recMime || 'audio/webm';
+      mediaRecorder.onstop = async () => {
+        stopTracks();
+        const chunks = mediaChunks;
+        mediaRecorder = null;
+        resetRecordUI();
+        if (!chunks.length) return;
+        const blob = new Blob(chunks, { type: mime });
+        const fd = new FormData();
+        fd.append('room', room);
+        fd.append('dur', dur.toFixed(1));
+        fd.append('audio', blob, 'voice');
+        if (replyingTo) fd.append('reply_to', replyingTo);
+        cancelReply();
+        try {
+          const r = await fetch('/voice', { method: 'POST', body: fd });
+          if (r.status === 403) { const d = await r.json(); if (d.muted) applyMute(d.muted); }
+          else if (!r.ok) { flash('No se pudo enviar la nota de voz'); }
+        } catch (e) { flash('No se pudo enviar la nota de voz'); }
+      };
+      if (mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+    }
+
+    document.getElementById('recCancel').addEventListener('click', cancelRecording);
+    document.getElementById('recSend').addEventListener('click', finishRecording);
 
     function setCards(n) { document.getElementById('cards').textContent = '🟨 ' + n; }
 
