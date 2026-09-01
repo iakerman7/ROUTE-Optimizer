@@ -3,523 +3,411 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#f7f7f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#f9f9f9" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
   <title>Chat anónimo · {{ room }}</title>
   <style>
-    /* Estética iMessage (iOS). Modo claro y oscuro automáticos. */
     :root {
       --bg: #ffffff;
-      --header: rgba(247, 247, 247, 0.82);
-      --hair: rgba(0, 0, 0, 0.12);
-      --text: #000000;
-      --muted: #8e8e93;
-      --blue: #248bf5;
-      --blue-press: #1a75d1;
-      --bubble-other: #e9e9eb;
-      --bubble-other-text: #000000;
-      --input-bg: #ffffff;
-      --input-border: #d1d1d6;
-      --send-off: #c7c7cc;
+      --header-bg: rgba(249, 249, 249, 0.92);
+      --border: #d1d1d6;
+      --bubble-in: #e9e9eb;
+      --bubble-in-text: #000000;
+      --bubble-out: #0a84ff;
+      --bubble-out-text: #ffffff;
+      --muted-c: #8e8e93;
+      --blue: #0a84ff;
+      --red: #ff3b30;
+      --gold: #ffb300;
+      --field-bg: #ffffff;
+      --popover-bg: #ffffff;
+      --replybar-bg: #f7f7f8;
     }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #000000;
-        --header: rgba(28, 28, 30, 0.82);
-        --hair: rgba(255, 255, 255, 0.16);
-        --text: #ffffff;
-        --muted: #98989f;
-        --blue: #248bf5;
-        --blue-press: #1a75d1;
-        --bubble-other: #26252a;
-        --bubble-other-text: #ffffff;
-        --input-bg: #1c1c1e;
-        --input-border: #38383a;
-        --send-off: #48484a;
-      }
-    }
-
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body { height: 100%; }
     body {
       margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
-                   Roboto, "Helvetica Neue", sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       background: var(--bg);
-      color: var(--text);
+      color: #000;
       display: flex;
       flex-direction: column;
       height: 100dvh;
       overscroll-behavior: none;
+      -webkit-font-smoothing: antialiased;
     }
 
-    /* --- Barra superior estilo iOS --- */
+    /* --- Cabecera --- */
     header {
       flex: 0 0 auto;
-      display: grid;
-      grid-template-columns: 1fr auto 1fr;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 12px calc(8px + env(safe-area-inset-top, 0px));
-      padding-top: calc(8px + env(safe-area-inset-top, 0px));
-      background: var(--header);
+      z-index: 10;
+      background: var(--header-bg);
       backdrop-filter: saturate(180%) blur(20px);
       -webkit-backdrop-filter: saturate(180%) blur(20px);
-      border-bottom: 0.5px solid var(--hair);
-      position: relative;
-      z-index: 5;
+      border-bottom: 0.5px solid var(--border);
+      padding: calc(8px + env(safe-area-inset-top, 0px)) 14px 8px;
+      display: flex; align-items: center; gap: 10px;
     }
-    .titulo { text-align: center; min-width: 0; }
-    .titulo .sala {
-      font-size: 15px;
-      font-weight: 600;
-      letter-spacing: -0.2px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    .title-wrap { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
+    .title-wrap .t { font-size: 16px; font-weight: 600; }
+    .title-wrap .sub { font-size: 12px; color: var(--muted-c); display: flex; gap: 8px; align-items: center; }
+    .online-dot { width: 8px; height: 8px; border-radius: 50%; background: #34c759; display: inline-block; }
+    .spacer { flex: 1; }
+    .pill {
+      background: #ececee; border-radius: 999px; padding: 3px 9px;
+      font-size: 13px; color: #3a3a3c; white-space: nowrap;
     }
-    .titulo .yo {
-      font-size: 11px;
-      color: var(--muted);
-      margin-top: 1px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 4px;
-      white-space: nowrap;
+    .icon-btn {
+      background: none; border: none; color: var(--blue);
+      font-size: 15px; cursor: pointer; padding: 6px 8px; border-radius: 8px;
     }
-    .titulo .yo .chip {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 15px; height: 15px;
-      border-radius: 50%;
-      font-size: 9px;
-      line-height: 1;
-    }
-    .acciones { display: flex; justify-content: flex-end; gap: 4px; }
-    .btn-ios {
-      background: none;
-      border: 0;
-      color: var(--blue);
-      font: inherit;
-      font-size: 15px;
-      padding: 6px 8px;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-    .btn-ios:active { opacity: 0.5; }
-    .btn-ios.icono { font-size: 17px; padding: 5px 8px; }
+    .icon-btn:hover { background: rgba(10,132,255,0.1); }
+    .icon-btn:active { opacity: 0.5; }
 
-    /* --- Lista de mensajes --- */
+    /* --- Banner de destacado --- */
+    #goldBanner {
+      display: none; align-items: center; gap: 8px;
+      background: linear-gradient(90deg, #fff7e0, #fff);
+      border-bottom: 0.5px solid var(--border);
+      padding: 7px 14px; font-size: 13px; color: #7a5b00; cursor: pointer;
+    }
+    #goldBanner b { font-weight: 600; }
+    #goldBanner .gtext { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* --- Mensajes --- */
     #messages {
       flex: 1 1 auto;
       overflow-y: auto;
-      /* La máscara de la colita sobresale del ancho de la burbuja; recortarla
-         evita una barra de scroll horizontal (es del color del fondo, así que
-         no se pierde nada visible). No sirve "clip": con overflow-y: auto el
-         navegador lo degrada a hidden. */
       overflow-x: hidden;
       -webkit-overflow-scrolling: touch;
-      padding: 10px 14px 14px;
+      padding: 14px 12px 6px;
+      display: flex; flex-direction: column; gap: 2px;
     }
+    .system { align-self: center; color: var(--muted-c); font-size: 12px; text-align: center; margin: 5px 20px; }
 
-    .nota {
-      text-align: center;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.45;
-      margin: 18px auto 22px;
-      max-width: 300px;
+    .row { display: flex; flex-direction: column; max-width: 78%; }
+    .row.in  { align-self: flex-start; align-items: flex-start; }
+    .row.out { align-self: flex-end;   align-items: flex-end; }
+    .row.fresh { margin-top: 10px; }
+
+    .quote {
+      font-size: 13px; color: var(--muted-c);
+      border-left: 3px solid #c7c7cc; padding: 1px 8px; margin: 0 6px 3px;
+      max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
-    .nota b { color: var(--text); font-weight: 600; }
-
-    .divisor {
-      text-align: center;
-      color: var(--muted);
-      font-size: 11px;
-      margin: 18px 0 10px;
-      letter-spacing: 0.1px;
-    }
-    .divisor b { font-weight: 600; color: var(--muted); }
-
-    /* Fila = una burbuja (+ avatar y nombre cuando toca) */
-    .row { display: flex; margin-top: 2px; }
-    .row.g-first { margin-top: 11px; }
-    .row.mine { justify-content: flex-end; }
-    .row.theirs { justify-content: flex-start; padding-left: 38px; position: relative; }
-
-    .avatar {
-      position: absolute;
-      left: 0;
-      bottom: 0;
-      /* Por encima de la máscara de la colita, que si no lo tapa a medias. */
-      z-index: 3;
-      width: 28px; height: 28px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 15px;
-      line-height: 1;
-      user-select: none;
-    }
-
-    /* El tope de ancho vive aquí, no en la burbuja: así la burbuja se ajusta a
-       su contenido (fit-content) y una palabra corta no se parte nunca. */
-    .stack {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      min-width: 0;
-      max-width: min(74%, 520px);
-    }
-    .row.mine .stack { align-items: flex-end; }
-
-    .nombre {
-      font-size: 11px;
-      color: var(--muted);
-      margin: 0 0 3px 12px;
-      font-weight: 400;
-      letter-spacing: 0.1px;
-    }
-
     .bubble {
-      position: relative;
-      max-width: 100%;
-      padding: 8px 14px;
-      border-radius: 19px;
-      font-size: 16px;
-      line-height: 1.34;
-      white-space: pre-wrap;
-      /* break-word y NO anywhere: anywhere baja el ancho mínimo intrínseco a
-         un carácter y la burbuja se colapsa partiendo hasta "prueba". */
-      overflow-wrap: break-word;
-      letter-spacing: -0.1px;
+      padding: 7px 13px; border-radius: 19px; font-size: 16px; line-height: 1.32;
+      white-space: pre-wrap; overflow-wrap: break-word; position: relative; cursor: pointer;
     }
-    .row.theirs .bubble { background: var(--bubble-other); color: var(--bubble-other-text); }
-    .row.mine .bubble { background: var(--blue); color: #fff; }
+    .in  .bubble { background: var(--bubble-in);  color: var(--bubble-in-text); border-bottom-left-radius: 6px; }
+    .out .bubble { background: var(--bubble-out); color: var(--bubble-out-text); border-bottom-right-radius: 6px; }
+    .row.red .bubble  { background: linear-gradient(135deg, #ff5b52, #ff3b30) !important; color: #fff !important; }
+    .row.gold .bubble { box-shadow: 0 0 0 2px var(--gold); }
+    .flag { font-size: 11px; font-weight: 600; margin: 3px 10px 0; }
+    .row.red .flag  { color: var(--red); }
+    .row.gold .flag { color: #b37f00; }
 
-    /* Colita de la última burbuja del grupo (truco clásico de iMessage) */
-    .row.g-last.theirs .bubble::before {
-      content: "";
-      position: absolute; z-index: 0;
-      bottom: 0; left: -7px;
-      width: 20px; height: 20px;
-      background: var(--bubble-other);
-      border-bottom-right-radius: 16px 14px;
+    .reacts { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 8px 0; }
+    .chip {
+      background: #fff; border: 1px solid var(--border); border-radius: 999px;
+      padding: 1px 7px; font-size: 12px; line-height: 1.5; cursor: pointer;
+      display: inline-flex; gap: 3px; align-items: center; user-select: none;
     }
-    .row.g-last.theirs .bubble::after {
-      content: "";
-      position: absolute; z-index: 1;
-      bottom: 0; left: -26px;
-      width: 26px; height: 20px;
-      background: var(--bg);
-      border-bottom-right-radius: 10px;
-    }
-    .row.g-last.mine .bubble::before {
-      content: "";
-      position: absolute; z-index: 0;
-      bottom: 0; right: -7px;
-      width: 20px; height: 20px;
-      background: var(--blue);
-      border-bottom-left-radius: 16px 14px;
-    }
-    .row.g-last.mine .bubble::after {
-      content: "";
-      position: absolute; z-index: 1;
-      bottom: 0; right: -26px;
-      width: 26px; height: 20px;
-      background: var(--bg);
-      border-bottom-left-radius: 10px;
-    }
+    .chip.mine { background: #dcecff; border-color: #a9d0ff; }
+    .chip .cnt { color: #555; font-variant-numeric: tabular-nums; }
+    .time { font-size: 11px; color: var(--muted-c); margin: 3px 12px 0; }
 
-    .recibo {
-      text-align: right;
-      font-size: 11px;
-      color: var(--muted);
-      margin: 3px 4px 0 0;
-      letter-spacing: 0.1px;
+    /* --- Popover de acciones (reactions + reply) --- */
+    #popover {
+      position: fixed; z-index: 50; display: none;
+      background: var(--popover-bg); border: 1px solid var(--border); border-radius: 22px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.18); padding: 5px 8px;
+      align-items: center; gap: 2px;
     }
+    #popover button {
+      border: none; background: none; font-size: 22px; cursor: pointer;
+      padding: 3px 4px; border-radius: 50%; line-height: 1;
+    }
+    #popover button:hover { background: #f0f0f0; transform: scale(1.15); }
+    #popover .divider { width: 1px; height: 24px; background: var(--border); margin: 0 3px; }
+    #popover .reply-b { font-size: 16px; }
 
-    /* Entrada nueva: el "pop" de iMessage */
-    @keyframes pop {
-      from { transform: scale(0.94) translateY(6px); opacity: 0; }
-      to   { transform: scale(1) translateY(0); opacity: 1; }
+    /* --- Pie (typing + reply bar + composer) --- */
+    footer { flex: 0 0 auto; border-top: 0.5px solid var(--border); background: var(--bg); padding-bottom: env(safe-area-inset-bottom, 0px); }
+    #typing { font-size: 12px; color: var(--muted-c); padding: 4px 16px 0; min-height: 18px; }
+    #replyBar {
+      display: none; align-items: center; gap: 8px; padding: 6px 14px;
+      border-top: 0.5px solid var(--border); background: var(--replybar-bg);
     }
-    .row.nuevo .bubble { animation: pop 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
-    @media (prefers-reduced-motion: reduce) {
-      .row.nuevo .bubble { animation: none; }
-    }
+    #replyBar .rb-text { flex: 1; font-size: 13px; color: #555; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-left: 3px solid var(--blue); padding-left: 8px; }
+    #replyBar .rb-x { cursor: pointer; color: var(--muted-c); font-size: 18px; padding: 0 4px; }
 
-    /* --- Barra de escritura --- */
-    form {
-      flex: 0 0 auto;
-      display: flex;
-      align-items: flex-end;
-      gap: 8px;
-      padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
-      background: var(--header);
-      backdrop-filter: saturate(180%) blur(20px);
-      -webkit-backdrop-filter: saturate(180%) blur(20px);
-      border-top: 0.5px solid var(--hair);
+    #muteBar {
+      display: none; align-items: center; justify-content: center; gap: 8px;
+      background: #ffe5e3; color: var(--red); font-size: 14px; font-weight: 500;
+      padding: 10px; border-top: 0.5px solid #ffb3ad;
     }
-    .campo { position: relative; flex: 1; min-width: 0; }
+    .composer { display: flex; align-items: flex-end; gap: 8px; padding: 8px 10px; }
+    .field {
+      flex: 1; display: flex; align-items: center; border: 1px solid var(--border);
+      border-radius: 20px; background: var(--field-bg); padding: 5px 6px 5px 14px; min-height: 36px;
+    }
     #text {
-      width: 100%;
-      background: var(--input-bg);
-      color: var(--text);
-      border: 1px solid var(--input-border);
-      border-radius: 19px;
-      padding: 8px 42px 8px 14px;
-      font-family: inherit;
-      font-size: 16px;
-      line-height: 1.3;
-      resize: none;
-      max-height: 132px;
-      overflow-y: auto;
+      flex: 1; border: none; outline: none; resize: none; font-size: 16px; line-height: 1.3;
+      font-family: inherit; background: transparent; color: #000; max-height: 120px; padding: 3px 0;
     }
-    #text:focus { outline: none; border-color: var(--blue); }
-    #text::placeholder { color: var(--muted); }
     .send {
-      position: absolute;
-      right: 4px;
-      bottom: 4px;
-      width: 29px; height: 29px;
-      border: 0;
-      border-radius: 50%;
-      background: var(--blue);
-      color: #fff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      padding: 0;
-      transition: background 0.15s ease;
+      width: 30px; height: 30px; border-radius: 50%; border: none; background: var(--blue);
+      color: #fff; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+      flex: 0 0 auto; transition: background .15s, transform .1s; padding: 0;
     }
-    .send:disabled { background: var(--send-off); cursor: default; }
-    .send:not(:disabled):active { background: var(--blue-press); }
-    .send svg { width: 17px; height: 17px; display: block; }
+    .send:disabled { background: #c7c7cc; cursor: default; }
+    .send:active:not(:disabled) { background: #0a6fd6; transform: scale(0.92); }
+    .send svg { width: 18px; height: 18px; display: block; }
   </style>
 </head>
 <body>
   <header>
-    <div></div>
-    <div class="titulo">
-      <div class="sala">{{ room }}</div>
-      <div class="yo">
-        eres
-        <span class="chip" id="mecolor" style="background: {{ color }}" aria-hidden="true">{{ emoji }}</span>
-        <span id="mealias">{{ alias }}</span>
-      </div>
+    <div class="title-wrap">
+      <span class="t">Chat anónimo</span>
+      <span class="sub"><span class="online-dot"></span><span id="online">1</span> en línea · # {{ room }}</span>
     </div>
-    <div class="acciones">
-      <button class="btn-ios" id="copiar" type="button" title="Copiar enlace de invitación">Invitar</button>
-      <button class="btn-ios icono" id="regenerar" type="button" title="Aparecer como alguien nuevo" aria-label="Nueva identidad">↻</button>
-    </div>
+    <div class="spacer"></div>
+    <span class="pill" id="cards" title="Tarjetas amarillas disponibles">🟨 3</span>
+    <button class="icon-btn" id="copiar" type="button" title="Copiar enlace de invitación">Invitar</button>
   </header>
 
+  <div id="goldBanner"><span>🥇</span><span class="gtext"><b>Destacado:</b> <span id="goldText"></span></span></div>
+
   <div id="messages">
-    <div class="nota">
-      Estás en <b>{{ room }}</b> como <b>{{ emoji }} {{ alias }}</b>.<br>
-      Nadie ve nombres reales, emails ni direcciones IP.
-    </div>
+    <div class="system">Estás en la sala «{{ room }}». Nadie sabe quién eres.</div>
   </div>
 
-  <form id="form">
-    <div class="campo">
-      <textarea id="text" rows="1" placeholder="Mensaje anónimo" autocomplete="off"
-                autocapitalize="sentences" enterkeyhint="send"></textarea>
-      <button class="send" id="send" type="submit" disabled aria-label="Enviar">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M12 19V6M12 6l-6 6M12 6l6 6" stroke="currentColor"
-                stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <div id="popover"></div>
+
+  <footer>
+    <div id="typing"></div>
+    <div id="replyBar">
+      <div class="rb-text" id="rbText"></div>
+      <span class="rb-x" id="rbCancel">✕</span>
+    </div>
+    <div id="muteBar">🔴 Tarjeta roja — no puedes escribir (<span id="muteCount">1:00</span>)</div>
+    <div class="composer">
+      <div class="field">
+        <textarea id="text" rows="1" placeholder="Mensaje" autocomplete="off" enterkeyhint="send"></textarea>
+      </div>
+      <button class="send" id="sendBtn" type="button" disabled aria-label="Enviar">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 19V5M12 5l-6 6M12 5l6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </button>
     </div>
-  </form>
+  </footer>
 
   <script>
     const room = {{ room|tojson }};
-    let MY_PID = {{ pid|tojson }};
+    const EMOJIS = ["❤️","😂","👍","😮","😢","🔥","🟨","🥇"];
+    let lastId = 0;
+    let lastSide = null; // no hay alias; se usa solo para separar bloques por lado
+    let replyingTo = null;
+    let muteUntil = 0;
 
     const box = document.getElementById('messages');
-    const form = document.getElementById('form');
     const text = document.getElementById('text');
-    const sendBtn = document.getElementById('send');
-    const nota = box.querySelector('.nota');
+    const sendBtn = document.getElementById('sendBtn');
+    const popover = document.getElementById('popover');
+    const nodes = new Map(); // id -> {row, reactsEl}
 
-    let msgs = [];               // historial completo de la sala
-    let lastId = 0;              // último id recibido del servidor
-    const animados = new Set();  // ids ya animados, para no repetir el "pop"
-    const vistos = new Set();    // ids ya en msgs, para no duplicar burbujas
+    const esc = (s) => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
 
-    // Un mensaje puede llegar por dos vías a la vez: la respuesta de /send y un
-    // poll que ya iba en vuelo con un "since" anterior. Este filtro evita que
-    // se pinte dos veces.
-    function agregar(m) {
-      if (vistos.has(m.id)) return false;
-      vistos.add(m.id);
-      msgs.push(m);
-      if (m.id > lastId) lastId = m.id;
-      return true;
-    }
-
-    const GRUPO_MS = 2 * 60 * 1000;    // burbujas del mismo autor se agrupan
-    const DIVISOR_MS = 15 * 60 * 1000; // separador de hora tras un silencio
-
-    function pegadoAbajo() {
-      return box.scrollHeight - box.scrollTop - box.clientHeight < 90;
-    }
-    function alFondo() { box.scrollTop = box.scrollHeight; }
-
-    function hora(ms) {
-      return new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-    }
-    function etiquetaFecha(ms) {
-      const d = new Date(ms), hoy = new Date();
-      const ayer = new Date(hoy);
-      ayer.setDate(hoy.getDate() - 1);
-      if (d.toDateString() === hoy.toDateString()) return 'Hoy';
-      if (d.toDateString() === ayer.toDateString()) return 'Ayer';
-      return d.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' });
-    }
-
-    function el(tag, cls, txt) {
-      const n = document.createElement(tag);
-      if (cls) n.className = cls;
-      if (txt !== undefined) n.textContent = txt;  // textContent = nada de HTML inyectado
-      return n;
-    }
-
-    function pintar() {
-      const seguir = pegadoAbajo();
-
-      // Limpiamos todo menos la nota inicial y repintamos: hace falta porque
-      // agrupar burbujas depende del mensaje anterior Y del siguiente.
-      box.textContent = '';
-      if (msgs.length === 0) { box.appendChild(nota); alFondo(); return; }
-
-      // 1) Dónde va cada separador de hora.
-      const divisor = msgs.map((m, i) =>
-        i === 0 || m.t - msgs[i - 1].t > DIVISOR_MS);
-
-      for (let i = 0; i < msgs.length; i++) {
-        const m = msgs[i], prev = msgs[i - 1], next = msgs[i + 1];
-        const mio = m.pid === MY_PID;
-
-        if (divisor[i]) {
-          const d = el('div', 'divisor');
-          d.appendChild(el('b', null, etiquetaFecha(m.t)));
-          d.appendChild(document.createTextNode(' ' + hora(m.t)));
-          box.appendChild(d);
-        }
-
-        // 2) Agrupación: mismo autor, seguidos y cerca en el tiempo.
-        const primero = divisor[i] || !prev || prev.pid !== m.pid || m.t - prev.t > GRUPO_MS;
-        const ultimo = !next || next.pid !== m.pid || next.t - m.t > GRUPO_MS || divisor[i + 1];
-
-        const row = el('div', 'row ' + (mio ? 'mine' : 'theirs')
-          + (primero ? ' g-first' : '') + (ultimo ? ' g-last' : '')
-          + (animados.has(m.id) ? '' : ' nuevo'));
-        animados.add(m.id);
-
-        // Avatar solo en la última burbuja del grupo (como en iMessage).
-        if (!mio && ultimo) {
-          const av = el('div', 'avatar', m.emoji || '🙂');
-          av.style.background = m.color;
-          row.appendChild(av);
-        }
-
-        const stack = el('div', 'stack');
-        if (!mio && primero) stack.appendChild(el('div', 'nombre', m.alias));
-        stack.appendChild(el('div', 'bubble', m.text));
-        row.appendChild(stack);
-        box.appendChild(row);
+    function buildMessage(m) {
+      if (m.kind === 'system') {
+        const d = document.createElement('div');
+        d.className = 'system';
+        d.textContent = m.text;
+        box.appendChild(d);
+        return;
       }
+      const side = m.is_mine ? 'out' : 'in';
+      const fresh = (side !== lastSide) ? ' fresh' : '';
+      lastSide = side;
 
-      // 3) "Entregado" bajo el último mensaje, solo si es mío.
-      const fin = msgs[msgs.length - 1];
-      if (fin && fin.pid === MY_PID) box.appendChild(el('div', 'recibo', 'Entregado'));
+      const row = document.createElement('div');
+      row.className = 'row ' + side + fresh;
+      row.dataset.id = m.id;
 
-      if (seguir) alFondo();
+      let html = '';
+      if (m.reply) html += '<div class="quote">↩︎ ' + esc(m.reply.text) + '</div>';
+      html += '<div class="bubble">' + esc(m.text) + '</div>';
+      html += '<div class="flag"></div>';
+      html += '<div class="reacts"></div>';
+      html += '<div class="time">' + esc(m.ts) + '</div>';
+      row.innerHTML = html;
+
+      const bubble = row.querySelector('.bubble');
+      bubble.addEventListener('click', (e) => { e.stopPropagation(); openMenu(m.id, bubble); });
+
+      box.appendChild(row);
+      nodes.set(m.id, { row, reactsEl: row.querySelector('.reacts') });
+      applyState(m.id, m);
+    }
+
+    function applyState(id, s) {
+      const n = nodes.get(id);
+      if (!n) return;
+      // Reactions
+      n.reactsEl.innerHTML = '';
+      for (const emo of EMOJIS) {
+        const c = s.reactions[emo];
+        if (!c) continue;
+        const chip = document.createElement('span');
+        chip.className = 'chip' + (s.mine.includes(emo) ? ' mine' : '');
+        chip.innerHTML = emo + '<span class="cnt">' + c + '</span>';
+        chip.addEventListener('click', (e) => { e.stopPropagation(); react(id, emo); });
+        n.reactsEl.appendChild(chip);
+      }
+      // Estatus (roja / dorada)
+      n.row.classList.toggle('red', s.status === 'red');
+      n.row.classList.toggle('gold', s.status === 'gold');
+      const flag = n.row.querySelector('.flag');
+      flag.textContent = s.status === 'red' ? '🔴 Tarjeta roja'
+                       : s.status === 'gold' ? '🥇 Destacado' : '';
+    }
+
+    function openMenu(id, anchor) {
+      const r = anchor.getBoundingClientRect();
+      popover.innerHTML = '';
+      for (const emo of EMOJIS) {
+        const b = document.createElement('button');
+        b.textContent = emo;
+        b.title = emo === '🟨' ? 'Tarjeta amarilla' : emo === '🥇' ? 'Tarjeta dorada' : '';
+        b.addEventListener('click', (e) => { e.stopPropagation(); react(id, emo); closeMenu(); });
+        popover.appendChild(b);
+      }
+      const div = document.createElement('span'); div.className = 'divider'; popover.appendChild(div);
+      const rb = document.createElement('button'); rb.className = 'reply-b'; rb.textContent = '↩︎'; rb.title = 'Responder';
+      rb.addEventListener('click', (e) => { e.stopPropagation(); startReply(id); closeMenu(); });
+      popover.appendChild(rb);
+
+      popover.style.display = 'flex';
+      const pw = popover.offsetWidth, ph = popover.offsetHeight;
+      let left = Math.min(Math.max(8, r.left), window.innerWidth - pw - 8);
+      let top = r.top - ph - 8;
+      if (top < 8) top = r.bottom + 8;
+      popover.style.left = left + 'px';
+      popover.style.top = top + 'px';
+    }
+    function closeMenu() { popover.style.display = 'none'; }
+    document.addEventListener('click', closeMenu);
+    box.addEventListener('scroll', closeMenu);
+
+    async function react(id, emoji) {
+      const body = new URLSearchParams({ room, id, emoji });
+      try {
+        const r = await fetch('/react', { method: 'POST', body });
+        const data = await r.json();
+        if (typeof data.cards === 'number') setCards(data.cards);
+        if (!data.ok && data.error === 'sin tarjetas') flash('Sin tarjetas 🟨 (vuelven en unos min)');
+      } catch (e) {}
+    }
+
+    function startReply(id) {
+      const n = nodes.get(id);
+      const t = n ? n.row.querySelector('.bubble').textContent : '';
+      replyingTo = id;
+      document.getElementById('rbText').textContent = '↩︎ ' + t;
+      document.getElementById('replyBar').style.display = 'flex';
+      text.focus();
+    }
+    function cancelReply() { replyingTo = null; document.getElementById('replyBar').style.display = 'none'; }
+    document.getElementById('rbCancel').addEventListener('click', cancelReply);
+
+    async function enviar() {
+      if (Date.now() < muteUntil) return;
+      const t = text.value.trim();
+      if (!t) return;
+      text.value = ''; autosize(); updateSendState();
+      const body = new URLSearchParams({ room, text: t });
+      if (replyingTo) body.set('reply_to', replyingTo);
+      cancelReply();
+      try {
+        const r = await fetch('/send', { method: 'POST', body });
+        if (r.status === 403) { const d = await r.json(); if (d.muted) applyMute(d.muted); }
+      } catch (e) {}
+    }
+
+    text.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); }
+    });
+    sendBtn.addEventListener('click', enviar);
+
+    let lastTyping = 0;
+    function autosize() { text.style.height = 'auto'; text.style.height = Math.min(text.scrollHeight, 120) + 'px'; }
+    function updateSendState() { sendBtn.disabled = text.value.trim().length === 0 || Date.now() < muteUntil; }
+    text.addEventListener('input', () => {
+      autosize(); updateSendState();
+      const now = Date.now();
+      if (now - lastTyping > 2000) { lastTyping = now; fetch('/typing', { method: 'POST', body: new URLSearchParams({ room }) }).catch(() => {}); }
+    });
+
+    function setCards(n) { document.getElementById('cards').textContent = '🟨 ' + n; }
+
+    function applyMute(secs) {
+      muteUntil = Date.now() + secs * 1000;
+      updateSendState();
+    }
+    function tickMute() {
+      const bar = document.getElementById('muteBar');
+      const remain = Math.max(0, Math.ceil((muteUntil - Date.now()) / 1000));
+      if (remain > 0) {
+        bar.style.display = 'flex';
+        text.disabled = true;
+        const mm = Math.floor(remain / 60), ss = String(remain % 60).padStart(2, '0');
+        document.getElementById('muteCount').textContent = mm + ':' + ss;
+      } else {
+        bar.style.display = 'none';
+        text.disabled = false;
+      }
+      updateSendState();
+    }
+    setInterval(tickMute, 250);
+
+    let flashTimer = null;
+    function flash(msg) {
+      const t2 = document.getElementById('typing');
+      t2.textContent = msg;
+      clearTimeout(flashTimer);
+      flashTimer = setTimeout(() => { t2.textContent = ''; }, 2500);
     }
 
     async function poll() {
       try {
-        const r = await fetch('/messages?room=' + encodeURIComponent(room) + '&since=' + lastId);
+        const r = await fetch('/state?room=' + encodeURIComponent(room) + '&since=' + lastId);
         const data = await r.json();
-        let hubo = false;
-        for (const m of data.messages) hubo = agregar(m) || hubo;
-        if (!hubo) return;
-        msgs.sort((a, b) => a.id - b.id);
-        pintar();
-      } catch (e) { /* reintenta en el siguiente ciclo */ }
-    }
-
-    // La caja de texto crece con el contenido, como en iMessage.
-    function ajustarAlto() {
-      text.style.height = 'auto';
-      text.style.height = Math.min(text.scrollHeight, 132) + 'px';
-      sendBtn.disabled = text.value.trim() === '';
-    }
-    text.addEventListener('input', ajustarAlto);
-
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const t = text.value.trim();
-      if (!t) return;
-      text.value = '';
-      ajustarAlto();
-      try {
-        const r = await fetch('/send', {
-          method: 'POST',
-          body: new URLSearchParams({ room, text: t }),
-        });
-        const data = await r.json();
-        if (data.ok && agregar(data.message)) {
-          msgs.sort((a, b) => a.id - b.id);
-          pintar();
-          alFondo();  // al enviar siempre bajamos
+        for (const m of data.new) { lastId = Math.max(lastId, m.id); buildMessage(m); }
+        for (const u of data.upd) applyState(u.id, u);
+        document.getElementById('online').textContent = data.online;
+        setCards(data.cards);
+        if (data.muted > 0 && Date.now() >= muteUntil) applyMute(data.muted);
+        const typEl = document.getElementById('typing');
+        if (!flashTimer || typEl.textContent === '') {
+          typEl.textContent = data.typing === 1 ? 'Alguien está escribiendo…'
+                            : data.typing > 1 ? 'Varios están escribiendo…' : '';
         }
-      } catch (err) {
-        text.value = t;  // no se perdió el mensaje si falló la red
-        ajustarAlto();
-      }
-    });
-
-    // Enter envía, Shift+Enter salto de línea.
-    text.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        form.requestSubmit();
-      }
-    });
+        const gb = document.getElementById('goldBanner');
+        if (data.gold) { gb.style.display = 'flex'; document.getElementById('goldText').textContent = data.gold.text; }
+        else gb.style.display = 'none';
+      } catch (e) {}
+    }
 
     document.getElementById('copiar').addEventListener('click', async () => {
       const url = window.location.origin + '/?room=' + encodeURIComponent(room);
       const b = document.getElementById('copiar');
-      try {
-        await navigator.clipboard.writeText(url);
-        b.textContent = '¡Copiado!';
-        setTimeout(() => (b.textContent = 'Invitar'), 1500);
-      } catch (e) {
-        prompt('Copia este enlace e invítalo:', url);
-      }
+      try { await navigator.clipboard.writeText(url); b.textContent = '¡Copiado!'; setTimeout(() => (b.textContent = 'Invitar'), 1500); }
+      catch (e) { prompt('Copia este enlace e invítalo:', url); }
     });
 
-    document.getElementById('regenerar').addEventListener('click', async () => {
-      const r = await fetch('/nueva-identidad', { method: 'POST' });
-      const data = await r.json();
-      if (!data.ok) return;
-      MY_PID = data.pid;  // tus mensajes viejos quedan como los del anónimo anterior
-      document.getElementById('mealias').textContent = data.alias;
-      const chip = document.getElementById('mecolor');
-      chip.textContent = data.emoji;
-      chip.style.background = data.color;
-      pintar();
-    });
-
+    text.focus();
     poll();
     setInterval(poll, 1500);
   </script>
